@@ -3,6 +3,12 @@ import { SolorShell, pageLabels, type SolorPage } from './components/SolorShell'
 import { Overview } from './components/Overview';
 import { SubtaskUploadPanel } from './components/SubtaskUploadPanel';
 import { ItsmCorrelationPanel } from './components/ItsmCorrelationPanel';
+import { ColumnMappingPanel } from './components/ColumnMappingPanel';
+import { CompanyLogoSettings } from './components/CompanyLogoSettings';
+import { alarmMappingFields, itsmMappingFields, type ColumnMapping } from './lib/column-mapping';
+import type { inspectInputColumns } from './lib/csv-workbook';
+import { getMonthlyHistory } from './lib/monthly-history';
+import { correlateItsm } from './lib/itsm-correlation';
 import {
   Activity,
   AlertTriangle,
@@ -77,7 +83,7 @@ import {
 import { getItsmOperationalSummary } from "./lib/itsm-indicators";
 import { getInventoryOperationalSummary } from "./lib/inventory-indicators";
 import { getMonthComparison } from "./lib/month-comparison";
-import { getItsmJoinSummary, itsmMatchLabel, joinAlarmsWithItsm } from "./lib/itsm-join";
+import { extractIssueKeys, getItsmJoinSummary, itsmMatchLabel, joinAlarmsWithItsm } from "./lib/itsm-join";
 import type { AlarmCategory, AlarmRecord, DashboardFilters, DetectedColumn, ImportResult, InventoryAsset, InventoryImportResult, ItsmImportResult } from "./types/operadora";
 import type { LocalAiCategorySnapshot, LocalAiDashboardContext } from "./types/local-ai";
 import { DEFAULT_JIRA_ISSUES_URL } from "./lib/jira";
@@ -183,6 +189,9 @@ function exportCsv(rows: AlarmRecord[], category: AlarmCategory) {
 
 export default function App() {
   const [page, setPage] = useState<SolorPage>('overview');
+  const [companyLogo, setCompanyLogo] = useState(() => { try { return localStorage.getItem('operadash:company-logo') ?? ''; } catch { return ''; } });
+  const [alarmPreview, setAlarmPreview] = useState<ReturnType<typeof inspectInputColumns> | null>(null);
+  const [subtaskFile, setSubtaskFile] = useState<File | null>(null);
   const [subtaskData, setSubtaskData] = useState<ItsmImportResult | null>(null);
   const [subtaskBusy, setSubtaskBusy] = useState(false);
   const [subtaskError, setSubtaskError] = useState('');
@@ -227,15 +236,16 @@ export default function App() {
     window.scrollTo({ top: 0 });
   };
 
-  const processSubtasks = async (nextFile: File) => {
+  const processSubtasks = async (nextFile: File, requestedSheet?: string, mapping?: ColumnMapping) => {
     setSubtaskBusy(true); setSubtaskError('');
     try {
       if (!/\.(csv|xlsx)$/i.test(nextFile.name)) throw new Error('Selecione um CSV ou XLSX de subtarefas.');
       const buffer = await nextFile.arrayBuffer();
       const { parseItsmWorkbook } = await import('./lib/itsm-parser');
-      const parsed = parseItsmWorkbook(buffer, nextFile.name);
+      const parsed = parseItsmWorkbook(buffer, nextFile.name, requestedSheet, mapping);
+      setSubtaskFile(nextFile);
       setSubtaskData(parsed);
-      await saveImportedDocument({ key: 'subtasks', name: nextFile.name, buffer, sheetName: parsed.sheetName });
+      await saveImportedDocument({ key: 'subtasks', name: nextFile.name, buffer, sheetName: parsed.sheetName, options: { columnMapping: mapping } });
     } catch (cause) { setSubtaskError(cause instanceof Error ? cause.message : 'Não foi possível ler as subtarefas.'); }
     finally { setSubtaskBusy(false); }
   };
@@ -244,10 +254,10 @@ export default function App() {
     window.localStorage.setItem("operadash:jira-issues-url", jiraBaseUrl);
   }, [jiraBaseUrl]);
 
-  const processFile = async (nextFile: File, requestedSheet?: string) => {
-    setData(null);
-    setFile(null);
-    setFilters(emptyFilters());
+  const processFile = async (nextFile: File, requestedSheet?: string, mapping?: ColumnMapping) => {
+    const remapping = data !== null && file === nextFile && mapping !== undefined;
+    if (!remapping) { setData(null); setFile(null); setFilters(emptyFilters()); }
+    setAlarmPreview(null);
     setShowMethod(false);
     setError("");
     if (!/\.(csv|xlsx)$/i.test(nextFile.name)) {
@@ -261,30 +271,29 @@ export default function App() {
     setBusy(true);
     try {
       const buffer = await nextFile.arrayBuffer();
+      setFile(nextFile);
       const { parseWorkbook } = await import("./lib/xlsx-parser");
-      const parsed = parseWorkbook(buffer, nextFile.name, requestedSheet);
+      const parsed = parseWorkbook(buffer, nextFile.name, requestedSheet, mapping);
       const initialCategory = getDefaultCategory(parsed.records);
       const initialCategoryRecords = filterByCategory(parsed.records, initialCategory);
       setFile(nextFile);
       setData(parsed);
-      void saveImportedDocument({ key: "alarms", name: nextFile.name, buffer, sheetName: parsed.sheetName });
-      setFilters(emptyFilters(getDefaultMonth(initialCategoryRecords)));
-      setActiveTab(initialCategory);
-      setPage(initialCategory === "links" ? "links" : "devices");
-      setSidebarOpen(false);
+      void saveImportedDocument({ key: "alarms", name: nextFile.name, buffer, sheetName: parsed.sheetName, options: { columnMapping: mapping } });
+      if (!remapping) { setFilters(emptyFilters(getDefaultMonth(initialCategoryRecords))); setActiveTab(initialCategory); }
       setActiveView("operational");
       setChartYear(getAvailableYears(initialCategoryRecords)[0] ?? null);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Não foi possível ler esta planilha.");
+      try { const { inspectInputColumns } = await import('./lib/csv-workbook'); setAlarmPreview(inspectInputColumns(await nextFile.arrayBuffer(), nextFile.name, requestedSheet)); setFile(nextFile); } catch { /* Malformed files remain rejected. */ }
     } finally {
       setBusy(false);
     }
   };
 
-  const processItsmFile = async (nextFile: File, requestedSheet?: string) => {
-    setItsmData(null);
+  const processItsmFile = async (nextFile: File, requestedSheet?: string, mapping?: ColumnMapping) => {
+    if (!mapping) setItsmData(null);
     setItsmError("");
-    setFilters((current) => ({ ...current, itsmStatus: "", itsmResponsible: "" }));
+    if (nextFile !== itsmFile) setFilters((current) => ({ ...current, itsmStatus: "", itsmResponsible: "" }));
     if (!/\.(csv|xlsx)$/i.test(nextFile.name)) {
       setItsmError("Selecione um CSV ou XLSX de incidentes.");
       return;
@@ -297,10 +306,10 @@ export default function App() {
     try {
       const buffer = await nextFile.arrayBuffer();
       const { parseItsmWorkbook } = await import("./lib/itsm-parser");
-      const parsed = parseItsmWorkbook(buffer, nextFile.name, requestedSheet);
+      const parsed = parseItsmWorkbook(buffer, nextFile.name, requestedSheet, mapping);
       setItsmFile(nextFile);
       setItsmData(parsed);
-      void saveImportedDocument({ key: "itsm", name: nextFile.name, buffer, sheetName: parsed.sheetName });
+      void saveImportedDocument({ key: "itsm", name: nextFile.name, buffer, sheetName: parsed.sheetName, options: { columnMapping: mapping } });
     } catch (cause) {
       setItsmError(cause instanceof Error ? cause.message : "Não foi possível ler a planilha ITSM.");
     } finally {
@@ -368,9 +377,9 @@ export default function App() {
           loadImportedDocument("subtasks"),
         ]);
         const toFile = (document: { buffer: ArrayBuffer; name: string }) => new File([document.buffer], document.name, { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-        if (subtaskDocument) void processSubtasks(toFile(subtaskDocument));
-        if (alarmDocument) void processFile(toFile(alarmDocument), alarmDocument.sheetName);
-        if (itsmDocument) void processItsmFile(toFile(itsmDocument), itsmDocument.sheetName);
+        if (subtaskDocument) void processSubtasks(toFile(subtaskDocument), subtaskDocument.sheetName, subtaskDocument.options?.columnMapping);
+        if (alarmDocument) void processFile(toFile(alarmDocument), alarmDocument.sheetName, alarmDocument.options?.columnMapping);
+        if (itsmDocument) void processItsmFile(toFile(itsmDocument), itsmDocument.sheetName, itsmDocument.options?.columnMapping);
         if (inventoryDocument) void processInventoryFile(toFile(inventoryDocument), inventoryDocument.sheetName, inventoryDocument.options?.hostColumnIndex ?? undefined, inventoryDocument.options?.categoryColumnIndex, inventoryDocument.options?.localityColumnIndex, inventoryDocument.options?.operatorColumnIndex);
       } catch {
         setError("Os documentos anteriores não puderam ser restaurados. Importe-os novamente para continuar.");
@@ -455,6 +464,7 @@ export default function App() {
   const comparisonHasBaseline = Boolean(monthComparison && previousCoverageRecords.length > 0);
   const annualCoverageRecords = useMemo(() => filterRecordsByAlarmPeriod(chartScopeRecords, filters), [chartScopeRecords, filters]);
   const annualVolume = useMemo(() => getAnnualAlarmVolume(filtered, annualCoverageRecords, selectedYear), [filtered, annualCoverageRecords, selectedYear]);
+  const monthlyHistory = useMemo(() => getMonthlyHistory(categoryRecords, filters, selectedYear), [categoryRecords, filters, selectedYear]);
   const dayparts = useMemo(() => getDaypartActuation(filtered), [filtered]);
   const previousDayparts = useMemo(() => getDaypartActuation(previousFiltered).rows, [previousFiltered]);
   const mttr = useMemo(() => getMttr(filtered), [filtered]);
@@ -596,6 +606,8 @@ export default function App() {
     const allFilteredRecords = filterRecords(records, filters);
     const allDatedRecords = allFilteredRecords.filter((record) => record.startedAt && !Number.isNaN(record.startedAt.getTime()));
     const allItsm = getItsmOperationalSummary(allFilteredRecords);
+    const correlationKeys = new Set(allFilteredRecords.flatMap(row => [...extractIssueKeys(row.ticket), ...extractIssueKeys(row.comment)]));
+    const correlation = correlateItsm(allFilteredRecords, itsmData?.records ?? [], subtaskData?.records ?? [], correlationKeys);
     const allTechnicians = rankItsmTicketsForAlarmPeriod(itsmData?.records ?? [], allDatedRecords);
     const inventoryOperators = inventorySummary.operators.map((row) => ({ name: row.name, links: row.links, assets: row.assets, availabilityPercent: row.availabilityPercent }));
     const inventoryLocalities = inventorySummary.localities.map((row) => ({ name: row.name, links: row.links, assets: row.assets, availabilityPercent: row.availabilityPercent }));
@@ -637,6 +649,7 @@ export default function App() {
         oscillationOffenders: allItsm.oscillationOffenders.map((row) => ({ name: row.name, operator: row.operator, locality: row.locality, alarms: row.alarms, totalMinutes: Number(row.totalMinutes.toFixed(2)), averageMinutes: Number(row.averageMinutes.toFixed(2)), sharePercent: Number(row.sharePercent.toFixed(2)) })),
         ticketsByTechnician: allTechnicians.rows.slice(0, 5).map((row) => ({ name: row.name, tickets: row.alarms })),
       },
+      itsmCorrelation: { alerts: allFilteredRecords.length, linkedAlerts: correlation.linkedAlerts, confirmedAlerts: correlation.confirmedAlerts, incidents: correlation.incidents.length, subtasks: correlation.linkedSubtasks, ambiguousSubtasks: correlation.ambiguousSubtasks, conflictingIncidents: correlation.conflictingIncidents, reasons: correlation.reasons },
       inventory: { totalLinks: inventorySummary.totalLinks, totalAssets: inventorySummary.totalAssets, averageOperatorAvailability: inventorySummary.averageOperatorAvailability, averageLocalityAvailability: inventorySummary.averageLocalityAvailability, operators: inventoryOperators, localities: inventoryLocalities },
       dataQuality: {
         alarmHostsMissingFromInventory: linksSnapshot.monitoredAssets + devicesSnapshot.monitoredAssets > 0 ? activeAvailability.unmatchedAssets.length : 0,
@@ -648,7 +661,7 @@ export default function App() {
         mtfbIntervals: linksSnapshot.mtfbByOperatorLocality.reduce((sum, row) => sum + row.intervals, 0) + devicesSnapshot.mtfbByOperatorLocality.reduce((sum, row) => sum + row.intervals, 0),
       },
     };
-  }, [monthTitle, filters, activeTab, linkRecords, deviceRecords, linkRecordsAll, deviceRecordsAll, records, inventoryData, inventorySummary, itsmData]);
+  }, [monthTitle, filters, activeTab, linkRecords, deviceRecords, linkRecordsAll, deviceRecordsAll, records, inventoryData, inventorySummary, itsmData, subtaskData]);
 
   const scopeFilters = (
               <section className="filter-panel panel">
@@ -679,7 +692,7 @@ export default function App() {
   );
 
   return (
-    <SolorShell page={page} onNavigate={navigate}>
+    <SolorShell page={page} onNavigate={navigate} logo={companyLogo}>
     <div className={`app-shell solor-page solor-page--${page}`}>
       <header className="topbar">
         <a className="brand" href="./index.html" aria-label="Painel NOC Operadoras">
@@ -710,14 +723,14 @@ export default function App() {
               <input ref={itsmInputRef} type="file" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" className="visually-hidden" aria-label="Importar incidentes Jira CSV ou XLSX" onChange={onItsmFileInput} />
               <input ref={inventoryInputRef} type="file" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" className="visually-hidden" aria-label="Importar inventário CSV ou XLSX" onChange={onInventoryFileInput} />
               {extensionEnvironment ? <SharePointPublicFilePanel onFile={(nextFile) => void processFile(nextFile)} /> : null}
-              <AlarmUploadPanel result={data} busy={busy} error={error} dragging={dragging} onSelect={() => inputRef.current?.click()} onRemove={() => { setData(null); setFile(null); setError(""); void removeImportedDocument("alarms"); setFilters(emptyFilters()); }} onSheetChange={(sheetName) => { if (file) void processFile(file, sheetName); }} onFileDrop={(nextFile) => void processFile(nextFile)} onDragChange={setDragging} />
-              {data ? <DetectedColumnsPanel title="Colunas de alarmes" fileName={data.fileName} sheetName={data.sheetName} totalRows={data.totalRows} columns={data.detectedColumns} /> : null}
+              <AlarmUploadPanel result={data} busy={busy} error={error} dragging={dragging} onSelect={() => inputRef.current?.click()} onRemove={() => { setData(null); setAlarmPreview(null); setFile(null); setError(""); void removeImportedDocument("alarms"); setFilters(emptyFilters()); }} onSheetChange={(sheetName) => { if (file) void processFile(file, sheetName); }} onFileDrop={(nextFile) => void processFile(nextFile)} onDragChange={setDragging} />
+              {(data ?? alarmPreview) ? <ColumnMappingPanel title="Mapear colunas de alertas" fileName={(data ?? alarmPreview)!.fileName} sheetName={(data ?? alarmPreview)!.sheetName} totalRows={(data ?? alarmPreview)!.totalRows} columns={(data ?? alarmPreview)!.detectedColumns} mapping={(data ?? alarmPreview)!.columnMapping} fields={alarmMappingFields} busy={busy} onApply={mapping => { if (file) void processFile(file, (data ?? alarmPreview)!.sheetName, mapping); }} /> : null}
               {data?.warnings.length ? <details className="itsm-warnings sidebar-source-warnings"><summary><AlertTriangle size={13} />{formatNumber(data.warnings.length)} aviso(s) dos alarmes</summary><ul>{data.warnings.map((warning) => <li key={warning}>{warning}</li>)}</ul></details> : null}
               <ItsmUploadPanel fileName={itsmData?.fileName ?? null} result={itsmData} summary={itsmSummary} busy={itsmBusy} error={itsmError} onSelect={() => itsmInputRef.current?.click()} onRemove={removeItsm} onSheetChange={(sheetName) => { if (itsmFile) void processItsmFile(itsmFile, sheetName); }} />
-              {itsmData ? <DetectedColumnsPanel title="Colunas ITSM" fileName={itsmData.fileName} sheetName={itsmData.sheetName} totalRows={itsmData.totalRows} columns={itsmData.detectedColumns} /> : null}
+              {itsmData ? <ColumnMappingPanel title="Mapear colunas de incidentes" fileName={itsmData.fileName} sheetName={itsmData.sheetName} totalRows={itsmData.totalRows} columns={itsmData.detectedColumns} mapping={itsmData.columnMapping} fields={itsmMappingFields} busy={itsmBusy} onApply={mapping => { if (itsmFile) void processItsmFile(itsmFile, itsmData.sheetName, mapping); }} /> : null}
               <input ref={subtaskInputRef} type="file" accept=".csv,.xlsx" className="visually-hidden" aria-label="Importar subtarefas Jira CSV ou XLSX" onChange={event => { const file = event.target.files?.[0]; if (file) void processSubtasks(file); event.target.value = ''; }} />
-              <SubtaskUploadPanel result={subtaskData} busy={subtaskBusy} error={subtaskError} onSelect={() => subtaskInputRef.current?.click()} onRemove={() => { setSubtaskData(null); setSubtaskError(''); void removeImportedDocument('subtasks'); }} />
-              {subtaskData ? <DetectedColumnsPanel title="Colunas das subtarefas" fileName={subtaskData.fileName} sheetName={subtaskData.sheetName} totalRows={subtaskData.totalRows} columns={subtaskData.detectedColumns} /> : null}
+              <SubtaskUploadPanel result={subtaskData} busy={subtaskBusy} error={subtaskError} onSelect={() => subtaskInputRef.current?.click()} onRemove={() => { setSubtaskData(null); setSubtaskFile(null); setSubtaskError(''); void removeImportedDocument('subtasks'); }} />
+              {subtaskData ? <ColumnMappingPanel title="Mapear colunas de subtarefas" fileName={subtaskData.fileName} sheetName={subtaskData.sheetName} totalRows={subtaskData.totalRows} columns={subtaskData.detectedColumns} mapping={subtaskData.columnMapping} fields={itsmMappingFields} busy={subtaskBusy} onApply={mapping => { if (subtaskFile) void processSubtasks(subtaskFile, subtaskData.sheetName, mapping); }} /> : null}
               <InventoryUploadPanel
                 fileName={inventoryData?.fileName ?? null}
                 result={inventoryData}
@@ -732,6 +745,7 @@ export default function App() {
                 onLocalityColumnChange={(columnIndex) => { if (inventoryFile && inventoryData) void processInventoryFile(inventoryFile, inventoryData.sheetName, inventoryData.hostColumnIndex ?? undefined, inventoryData.categoryColumnIndex, columnIndex, inventoryData.operatorColumnIndex); }}
               />
               {inventoryData ? <DetectedColumnsPanel title="Colunas do inventário" fileName={inventoryData.fileName} sheetName={inventoryData.sheetName} totalRows={inventoryData.totalRows} columns={inventoryDetectedColumns} /> : null}
+              <CompanyLogoSettings logo={companyLogo} onChange={setCompanyLogo} />
               <JiraSettings value={jiraBaseUrl} onChange={setJiraBaseUrl} />
               <DataQualityPanel filteredCount={filtered.length} durationIncluded={mttr.included} availabilityStatus={availability.status} availabilityExcluded={availability.excludedRecords} unmatchedAssets={availability.unmatchedAssets.length} inventoryLoaded={Boolean(inventoryData)} mtfbGroups={mtfbSummary.groupsWithBase} mtfbIntervals={mtfbSummary.intervals} />
             </aside>
@@ -830,7 +844,7 @@ export default function App() {
               <div className="insights-grid" aria-label="Atuação por período e volume anual">
                 <DaypartActuation rows={dayparts.rows} unclassified={dayparts.unclassified} previousRows={previousDayparts} comparisonLabel={comparisonLabel} />
                 <Suspense fallback={<div className="chart-empty annual-panel panel"><span className="empty-mark">···</span><p>Preparando o volume anual.</p></div>}>
-                  <AnnualVolumeChart year={selectedYear} years={years} yearPinned={yearPinned} periodConstrained={filters.month !== "all" || Boolean(filters.from || filters.to)} onYearChange={setChartYear} volume={annualVolume} selectedPeriodComparison={monthComparison ? { currentLabel: monthComparison.currentLabel, previousLabel: monthComparison.previousLabel, currentAlarms: currentDatedRecords.length, previousAlarms: previousDatedRecords.length, hasPreviousData: comparisonHasBaseline } : null} />
+                  <AnnualVolumeChart year={selectedYear} years={years} yearPinned={yearPinned} periodConstrained={filters.month !== "all" || Boolean(filters.from || filters.to)} onYearChange={setChartYear} volume={annualVolume} history={monthlyHistory} selectedPeriodComparison={monthComparison ? { currentLabel: monthComparison.currentLabel, previousLabel: monthComparison.previousLabel, currentAlarms: currentDatedRecords.length, previousAlarms: previousDatedRecords.length, hasPreviousData: comparisonHasBaseline } : null} />
                 </Suspense>
               </div>
 

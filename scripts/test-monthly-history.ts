@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+import { getMonthlyHistory } from '../src/lib/monthly-history';
+import { parseWorkbook } from '../src/lib/xlsx-parser';
+import type { DashboardFilters } from '../src/types/operadora';
+const csv = 'Alarme;Dispositivo;Responsável;Horário Inicial;Horário Final;Operadora\nICMP;LINK-A;noc;01/01/2026 10:00:00;01/01/2026 11:00:00;A\nICMP;LINK-A;noc;01/03/2026 10:00:00;01/03/2026 11:00:00;A\nICMP;LINK-B;noc;01/02/2026 10:00:00;01/02/2026 11:00:00;B';
+const data = parseWorkbook(new TextEncoder().encode(csv).buffer, 'history.csv');
+const filters: DashboardFilters = { month:'2026-03',from:'2026-03-01',to:'2026-03-05',operator:'A',locality:'',responsible:'',deviceType:'',sourceType:'',trap:'',itsmStatus:'',itsmResponsible:'',search:'' };
+assert.deepEqual(getMonthlyHistory(data.records, filters, 2026).months.map(month => month.alarms), [1,0,1]);
+assert.equal(filters.month, '2026-03');
+assert.equal(getMonthlyHistory(data.records, filters, 2025).months.length, 0);
+console.log('Monthly history ignores month/date limits and preserves other filters');

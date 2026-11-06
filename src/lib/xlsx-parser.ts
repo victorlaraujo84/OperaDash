@@ -1,5 +1,6 @@
 import * as XLSX from "xlsx";
 import { readInputWorkbook } from './csv-workbook';
+import { applyColumnMapping, resolvedColumnMapping, type ColumnMapping } from './column-mapping';
 import type { AlarmClassification, AlarmRecord, DetectedColumn, ImportResult } from "../types/operadora";
 
 const UNKNOWN = "Não informada";
@@ -110,7 +111,7 @@ function usableRows(matrix: Matrix): Matrix {
   return matrix.filter((row) => row.some((value) => text(value) !== ""));
 }
 
-export function parseWorkbook(buffer: ArrayBuffer, fileName: string, requestedSheet?: string): ImportResult {
+export function parseWorkbook(buffer: ArrayBuffer, fileName: string, requestedSheet?: string, mapping: ColumnMapping = {}): ImportResult {
   const workbook = readInputWorkbook(buffer, fileName);
   const sheetNames = workbook.SheetNames;
   if (sheetNames.length === 0) throw new Error("O arquivo não contém abas de planilha.");
@@ -122,7 +123,7 @@ export function parseWorkbook(buffer: ArrayBuffer, fileName: string, requestedSh
   if (matrix.length < 2) throw new Error(`A aba “${sheetName}” não contém cabeçalho e linhas de dados.`);
 
   const headers = matrix[0].map((value) => text(value));
-  const columns: Record<string, number | undefined> = {
+  const columns: Record<string, number | undefined> = applyColumnMapping({
     start: findColumn(headers, ["Horário Inicial", "Data/Hora Inicial", "Data de Início", "Início", "Abertura"]),
     end: findColumn(headers, ["Horário Final", "Data/Hora Final", "Data de Fim", "Fim", "Encerramento"]),
     device: findColumn(headers, ["Dispositivo", "Link", "Circuito", "Equipamento"]),
@@ -137,7 +138,7 @@ export function parseWorkbook(buffer: ArrayBuffer, fileName: string, requestedSh
     comment: findColumn(headers, ["Comentários", "Comentario", "Observação", "Observacoes", "Descrição", "Detalhes"]),
     duration: findColumn(headers, ["DuracaoMinutos", "Duração em Minutos", "Tempo de Indisponibilidade", "Duração", "Tempo no Horário de Análise (H:M:S)"]),
     classification: findColumn(headers, ["Classificação", "Classificacao", "Classification"]),
-  };
+  }, mapping, headers.length);
   const missing: string[] = [];
   if (columns.start === undefined) missing.push("Horário Inicial");
   if (columns.device === undefined) missing.push("Dispositivo");
@@ -230,5 +231,6 @@ export function parseWorkbook(buffer: ArrayBuffer, fileName: string, requestedSh
     rowsWithoutDuration,
     skippedBlankRows: 0,
     totalRows: records.length,
+    columnMapping: resolvedColumnMapping(columns),
   };
 }

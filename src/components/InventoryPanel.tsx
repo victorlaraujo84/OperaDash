@@ -1,4 +1,6 @@
-import { Cable, MapPin, Network, Server, ShieldCheck } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Cable, MapPin, Network, Server, ShieldCheck } from "lucide-react";
+import { useState } from 'react';
+import { sortInventoryRows, type InventorySortKey, type SortDirection } from '../lib/inventory-sort';
 import type { InventoryDimensionRow, InventoryOperationalSummary } from "../types/operadora";
 import { formatHours, formatNumber, formatPercent } from "../lib/analytics";
 
@@ -17,10 +19,13 @@ function statusLabel(status: string): string {
 }
 
 function DimensionTable({ rows, dimension }: { rows: InventoryDimensionRow[]; dimension: "operator" | "locality" }) {
+  const [sort, setSort] = useState<{ key: InventorySortKey; direction: SortDirection }>({ key: 'name', direction: 'asc' });
+  const sortedRows = sortInventoryRows(rows, sort.key, sort.direction);
+  const columns: { key: InventorySortKey; label: string }[] = [{ key: 'name', label: dimension === 'operator' ? 'Operadora' : 'Localidade' }, { key: dimension === 'operator' ? 'links' : 'assets', label: dimension === 'operator' ? 'Links' : 'Ativos' }, { key: 'availabilityPercent', label: 'Disponibilidade média' }];
   if (!rows.length) return <div className="inventory-panel__empty"><span>—</span><p>Nenhum agrupamento completo foi identificado no inventário.</p></div>;
   return <div className="inventory-dimension-table" role="table" aria-label={dimension === "operator" ? "Disponibilidade por operadora" : "Disponibilidade por localidade"}>
-    <div className="inventory-dimension-table__head" role="row"><span>{dimension === "operator" ? "Operadora" : "Localidade"}</span><span>{dimension === "operator" ? "Links" : "Ativos"}</span><span>Disponibilidade média</span></div>
-    {rows.map((row) => <div className="inventory-dimension-table__row" role="row" key={row.name}>
+    <div className="inventory-dimension-table__head" role="row">{columns.map(column => <span key={column.key} role="columnheader" aria-sort={sort.key === column.key ? sort.direction === 'asc' ? 'ascending' : 'descending' : 'none'}><button className="inventory-sort-button" title="Clique para alternar ordem crescente e decrescente" onClick={() => setSort(current => ({ key: column.key, direction: current.key === column.key ? current.direction === 'asc' ? 'desc' : 'asc' : column.key === 'name' ? 'asc' : 'desc' }))}>{column.label}{sort.key !== column.key ? <ArrowUpDown size={12} /> : sort.direction === 'asc' ? <ArrowUp size={12} /> : <ArrowDown size={12} />}</button></span>)}</div>
+    {sortedRows.map((row) => <div className="inventory-dimension-table__row" role="row" key={row.name}>
       <div className="inventory-dimension-table__name"><strong title={row.name}>{row.name}</strong><small>{statusLabel(row.availabilityStatus)}{row.downtimeHours ? ` · ${formatHours(row.downtimeHours)} h indisponíveis` : ""}</small></div>
       <span><b>{formatNumber(dimension === "operator" ? row.links : row.assets)}</b><small>{dimension === "operator" ? `${formatNumber(row.assets)} ativos` : `${formatNumber(row.links)} links`}</small></span>
       <strong className={row.availabilityPercent === null ? "inventory-percent inventory-percent--muted" : "inventory-percent"}>{formatPercent(row.availabilityPercent)}</strong>

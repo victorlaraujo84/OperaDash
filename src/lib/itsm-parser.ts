@@ -1,5 +1,6 @@
 import * as XLSX from "xlsx";
 import { readInputWorkbook } from './csv-workbook';
+import { applyColumnMapping, resolvedColumnMapping, type ColumnMapping } from './column-mapping';
 import type { DetectedColumn, ItsmImportResult, ItsmIncident, ItsmInternalLink, ItsmLinkField } from "../types/operadora";
 import { extractIssueKeys, normalizeIssueKey } from "./itsm-join";
 
@@ -99,7 +100,7 @@ function keysFrom(value: string): string[] {
   return normalized ? [normalized] : [];
 }
 
-export function parseItsmWorkbook(buffer: ArrayBuffer, fileName: string, requestedSheet?: string): ItsmImportResult {
+export function parseItsmWorkbook(buffer: ArrayBuffer, fileName: string, requestedSheet?: string, mapping: ColumnMapping = {}): ItsmImportResult {
   const workbook = readInputWorkbook(buffer, fileName);
   const sheetNames = workbook.SheetNames;
   if (!sheetNames.length) throw new Error("O arquivo ITSM não contém abas de planilha.");
@@ -111,7 +112,7 @@ export function parseItsmWorkbook(buffer: ArrayBuffer, fileName: string, request
   if (matrix.length < 2) throw new Error(`A aba ITSM “${sheetName}” não contém cabeçalho e linhas de dados.`);
 
   const headers = matrix[0].map(text);
-  const columns = {
+  const columns = applyColumnMapping({
     key: findColumn(headers, ["Chave da item", "Chave do item", "Issue key", "Chave", "Key"]),
     summary: findColumn(headers, ["Resumo", "Summary"]),
     reason: findColumn(headers, ["Motivo", "Motivo do alarme", "Reason", "Campo personalizado (Motivo do alarme)"]),
@@ -130,7 +131,7 @@ export function parseItsmWorkbook(buffer: ArrayBuffer, fileName: string, request
     parent: findColumn(headers, ['Pai', 'Chave do pai', 'Chave do incidente pai', 'Incidente pai', 'Parent', 'Parent key', 'Parent issue key']),
     issueId: findColumn(headers, ['ID da item', 'ID do item', 'Issue id']),
     parentId: findColumn(headers, ['ID pai', 'Parent id', 'Parent issue id']),
-  };
+  }, mapping, headers.length);
   const mappedFields: Array<[number | undefined, string]> = [
     [columns.key, "Chave do ticket"], [columns.summary, "Resumo"], [columns.reason, "Motivo"], [columns.itemType, "Tipo de item"], [columns.responsible, "Responsável"],
     [columns.link1, "LinkInterno-1"], [columns.link2, "LinkInterno-2"], [columns.status, "Status"],
@@ -189,7 +190,7 @@ export function parseItsmWorkbook(buffer: ArrayBuffer, fileName: string, request
   ];
   const missing = optionalColumns.filter(([key]) => columns[key] === undefined && !(key === "reason" && columns.itemType !== undefined)).map(([, label]) => label);
   if (missing.length) warnings.push(`Colunas ITSM não encontradas e mantidas em branco: ${missing.join(", ")}.`);
-  if (columns.reason === undefined && columns.itemType !== undefined) warnings.push("A coluna Motivo não foi encontrada; a validação do motivo da indisponibilidade usará Tipo de item.");
+  if (columns.reason === undefined) warnings.push('Motivo não mapeado. Selecione a coluna correspondente no mapeamento; Tipo de item não confirma a causa da queda.');
   if (columns.due !== undefined && records.every((record) => record.dueAt === null)) warnings.push("A coluna Data limite está vazia ou contém datas não reconhecidas em todas as linhas; nenhum prazo foi inferido.");
   const counts = new Map<string, number>();
   for (const record of records) {
@@ -199,5 +200,5 @@ export function parseItsmWorkbook(buffer: ArrayBuffer, fileName: string, request
   const duplicateKeys = [...counts.values()].filter((count) => count > 1).length;
   if (duplicateKeys) warnings.push(`${duplicateKeys} chave(s) primária(s) aparecem em mais de uma linha; o join usa Resumo e links internos para desempatar, ou marca Ambíguo.`);
 
-  return { records, fileName, sheetName, sheetNames, warnings, detectedColumns, totalRows: records.length };
+  return { records, fileName, sheetName, sheetNames, warnings, detectedColumns, totalRows: records.length, columnMapping: resolvedColumnMapping(columns) };
 }

@@ -1,3 +1,4 @@
+import type { ColumnMapping } from '../lib/column-mapping';
 export type AlarmCategory = "links" | "devices";
 export type AlarmClassification = "Incidente" | "Oscilação" | "Não classificado";
 export type ItsmMatchStatus = "matched-key" | "matched-internal" | "ambiguous" | "not-found" | "no-key";
@@ -45,6 +46,7 @@ export interface ItsmJoinMatch {
 }
 
 export interface ItsmImportResult {
+  columnMapping?: ColumnMapping;
   records: ItsmIncident[];
   fileName: string;
   sheetName: string;
@@ -147,6 +149,7 @@ export interface AlarmRecord {
 }
 
 export interface ImportResult {
+  columnMapping?: ColumnMapping;
   records: AlarmRecord[];
   fileName: string;
   sheetName: string;

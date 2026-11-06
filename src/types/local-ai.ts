@@ -15,6 +15,7 @@ export type LocalAiBridgeResponse =
   | { ok: false; error: string };
 
 export interface LocalAiDashboardContext {
+  itsmCorrelation?: { alerts: number; linkedAlerts: number; confirmedAlerts: number; incidents: number; subtasks: number; ambiguousSubtasks: number; conflictingIncidents: number; reasons: { name: string; subtasks: number; incidents: number }[] };
   period: string;
   category: string;
   activeCategory: string;

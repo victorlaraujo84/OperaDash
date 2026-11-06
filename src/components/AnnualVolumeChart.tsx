@@ -19,6 +19,7 @@ interface AnnualVolumeChartProps {
   periodConstrained: boolean;
   onYearChange: (year: number) => void;
   volume: AnnualAlarmVolume;
+  history?: AnnualAlarmVolume;
   selectedPeriodComparison?: SelectedPeriodComparison | null;
 }
 
@@ -26,10 +27,10 @@ function formatMedian(value: number): string {
   return new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 }).format(value);
 }
 
-export function AnnualVolumeChart({ year, years, yearPinned, periodConstrained, onYearChange, volume, selectedPeriodComparison }: AnnualVolumeChartProps) {
+export function AnnualVolumeChart({ year, years, yearPinned, periodConstrained, onYearChange, volume, history = volume, selectedPeriodComparison }: AnnualVolumeChartProps) {
   const { months, median } = volume;
-  const monthlyTrends = months.map((month, index) => {
-    const previousMonth = index > 0 ? months[index - 1] : null;
+  const monthlyTrends = history.months.map((month, index) => {
+    const previousMonth = index > 0 ? history.months[index - 1] : null;
     const trend = previousMonth ? getRelativeTrend(month.alarms, previousMonth.alarms) : null;
     const tone = !trend ? "neutral" : trend.direction === "up" || trend.direction === "new" ? "negative" : trend.direction === "down" ? "positive" : "neutral";
     return { ...month, previousMonth, trend, tone };
@@ -74,21 +75,13 @@ export function AnnualVolumeChart({ year, years, yearPinned, periodConstrained, 
               <small>{formatNumber(selectedPeriodComparison.currentAlarms)} alarmes filtrados no recorte atual · {formatNumber(selectedPeriodComparison.previousAlarms)} no mês-base</small>
             </div>
           ) : null}
-          <div className="annual-month-trends" aria-label="Variação do volume de alarmes em relação ao mês anterior">
-            <strong className="annual-month-trends__title">Mês a mês</strong>
-            {monthlyTrends.map((item) => (
-              <span className="annual-month-trends__item" key={item.key} title={item.previousMonth ? `${item.label}: ${formatNumber(item.alarms)} vs. ${item.previousMonth.label}: ${formatNumber(item.previousMonth.alarms)} alarmes filtrados` : `${item.label}: primeiro mês coberto, sem mês-base na série`}>
-                <strong>{item.label}</strong>
-                <small className={`month-change month-change--${item.tone}`}>{item.trend ? `${trendGlyph(item.trend.direction)} ${item.trend.text}` : "— sem base"}</small>
-              </span>
-            ))}
-          </div>
           <div className="annual-legend"><span className="annual-legend__bar" /><span>Alarmes filtrados por mês</span><span className="annual-legend__line" /><strong>Mediana: {median === null ? "—" : `${formatMedian(median)} alarmes`}</strong></div>
           <div className="panel-footnote">A série e as comparações usam categoria, datas/período, operadora, localidade, responsável, tipo, origem/trap, filtros ITSM e busca selecionados. {periodConstrained ? "As barras mostram somente os meses dentro do recorte temporal." : `Meses cobertos pelo conjunto filtrado (${months[0].label}–${months[months.length - 1].label} de ${year}).`} A linha tracejada é a mediana dos meses exibidos; aumento de alarmes indica maior impacto.</div>
         </>
       ) : (
         <div className="chart-empty"><span className="empty-mark">—</span><p>Nenhum alarme datado atende aos filtros selecionados neste ano.</p></div>
       )}
+      {monthlyTrends.length > 0 && <div className="solor-monthly-history"><div className="solor-monthly-history__heading"><strong>Histórico mês a mês · {year}</strong><small>Independente do mês e das datas selecionadas</small></div><div className="annual-month-trends" aria-label="Valores mensais e variação em relação ao mês anterior">{monthlyTrends.map(item => <div className="annual-month-trends__item" key={item.key}><strong>{item.label}</strong><b>{formatNumber(item.alarms)}</b><span>alarmes</span><small className={'month-change month-change--' + item.tone}>{item.trend ? trendGlyph(item.trend.direction) + ' ' + item.trend.text : '— sem mês-base'}</small></div>)}</div><p>Preserva categoria, operadora, localidade e os demais filtros. Meses sem eventos dentro da cobertura aparecem como zero.</p></div>}
     </section>
   );
 }

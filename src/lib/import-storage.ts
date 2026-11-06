@@ -1,3 +1,4 @@
+import type { ColumnMapping } from './column-mapping';
 export type ImportDocumentKey = "alarms" | "itsm" | "inventory" | "subtasks";
 
 export interface StoredImportDocument {
@@ -6,6 +7,7 @@ export interface StoredImportDocument {
   buffer: ArrayBuffer;
   sheetName?: string;
   options?: {
+    columnMapping?: ColumnMapping;
     hostColumnIndex?: number | null;
     categoryColumnIndex?: number | null;
     localityColumnIndex?: number | null;

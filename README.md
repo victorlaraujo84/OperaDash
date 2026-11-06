@@ -21,9 +21,21 @@ O ITSM usa o período do alerta para selecionar os incidentes e suas subtarefas;
 
 Os três CSVs fornecidos para validação resultaram em 51.550 alertas e 10.000 registros em cada fonte Jira. Os anexos de subtarefas não contêm motivo ou pai; a ferramenta apresenta essa lacuna, sem inferir causas. Contagens de 10.000 linhas recebem aviso de possível limitação da exportação.
 
-Os arquivos operacionais permanecem no navegador (IndexedDB), podem ser removidos na interface e são ignorados pelo Git. Nenhum arquivo de entrada foi incluído no repositório. A IA web monta prompts localmente; provedores opcionais da extensão mantêm os consentimentos existentes.
+Os arquivos operacionais permanecem no navegador (IndexedDB), podem ser removidos na interface e são ignorados pelo Git. Nenhum arquivo de entrada foi incluído no repositório. A IA web mantém os prompts e oferece conexão DeepSeek opcional; provedores da extensão mantêm os consentimentos existentes.
 
-O nome Solor é apresentado tipograficamente; o arquivo oficial do logotipo pode substituir a marca textual quando disponibilizado. Não existe login simulado.
+Em Fontes e configurações, adicione o logo da empresa (PNG/JPG/WebP até 2 MB), troque ou remova. A imagem fica somente no navegador. Não existe login simulado.
+
+## Ajustes de colunas e visualização
+
+Após importar, abra o mapeamento da fonte, mantenha os padrões ou selecione outras colunas e clique em Aplicar mapeamento. É possível escolher a coluna pela posição quando existem cabeçalhos repetidos, desativar campos e restaurar os padrões. O mapeamento é salvo com o arquivo; remapear preserva os filtros ativos. Um CSV de alertas com cabeçalhos desconhecidos pode ser configurado antes de liberar a análise.
+
+No inventário, clique nos cabeçalhos para alternar ordem crescente e decrescente por quantidade ou disponibilidade; percentuais não calculáveis ficam no fim. Os rankings exibem nomes completos e comparações expansíveis. O histórico Mês a mês ignora somente mês/data selecionados e mantém os demais filtros; o gráfico principal continua no recorte.
+
+## DeepSeek API no site
+
+Em Análise IA, informe sua chave e conecte para carregar o catálogo de modelos. Escolha o modelo e autorize o envio do resumo agregado antes de clicar em Analisar com DeepSeek. A chave permanece somente na memória da seção; ao desconectar ou sair, ela é descartada. A geração pode consumir créditos da conta DeepSeek. O relatório pode ser baixado em Markdown. Falhas de autenticação, saldo, limite, conexão/CORS e tempo de resposta são apresentadas na interface.
+
+Integração baseada nos endpoints oficiais [Models](https://api-docs.deepseek.com/api/list-models/) e [Chat Completions](https://api-docs.deepseek.com/api/create-chat-completion/). Sem chave real fornecida, a validação utiliza respostas sintéticas e verifica o contrato de HTTP, sem consumir créditos.
 
 ## Documentação da base preservada
 
@@ -66,7 +78,7 @@ Os dados são classificados pela coluna **Classificação**, com regra canônica
 
 A aba **Análise IA** não fica mais limitada à categoria ativa. O contexto agregado enviado ao provedor contém snapshots independentes de **Links**, **Dispositivos**, **ITSM** e **Inventário**, mantendo o recorte e os filtros aplicados. O relatório dá prioridade a **Flapping/oscilação de Links** quando houver ativos com quatro ou mais ocorrências em uma janela móvel de duas horas, sem deixar de comparar a recorrência em Dispositivos, a volumetria/solução do ITSM e a cobertura do inventário.
 
-Na versão online, nenhum provedor ou chave é solicitado: a aba oferece somente **Copiar prompt da análise** e **Copiar prompt da apresentação**. O conteúdo é montado localmente em Markdown e pode ser colado em qualquer IA escolhida pelo usuário. A extensão mantém, separadamente, o fluxo de análise local/online configurável.
+Na versão online, a aba oferece **Copiar prompt da análise**, **Copiar prompt da apresentação** e conexão opcional com a **DeepSeek API**, usando a chave informada pela pessoa usuária e autorização antes de enviar o resumo. O conteúdo é montado localmente em Markdown e pode ser colado em qualquer IA escolhida pelo usuário. A extensão mantém, separadamente, o fluxo de análise local/online configurável.
 
 O retorno dos provedores habilitados na extensão é solicitado em Markdown como relatório operacional com resumo executivo, comparação entre Links e Dispositivos, impactos quantificados, focos prioritários, plano de ação recomendado e ressalvas de qualidade. O cabeçalho identifica explicitamente o **Relatório consolidado · todas as abas**, que pode ser baixado como `.md`.
 

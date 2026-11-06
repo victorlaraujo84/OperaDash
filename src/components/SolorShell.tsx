@@ -8,12 +8,12 @@ const items = [
   { page: 'itsm', icon: Ticket }, { page: 'inventory', icon: Boxes }, { page: 'ai', icon: BrainCircuit },
 ] as const;
 
-export function SolorShell({ page, onNavigate, children }: { page: SolorPage; onNavigate: (page: SolorPage) => void; children: ReactNode }) {
+export function SolorShell({ page, onNavigate, children, logo = '' }: { page: SolorPage; onNavigate: (page: SolorPage) => void; children: ReactNode; logo?: string }) {
   const [collapsed, setCollapsed] = useState(false);
   return <div className={`solor-layout${collapsed ? ' solor-layout--collapsed' : ''}`}>
     <a className="solor-skip" href="#solor-main">Ir para o conteúdo</a>
     <aside className="solor-nav" aria-label="Navegação principal">
-      <div className="solor-logo-row"><button className="solor-logo" onClick={() => onNavigate('overview')} aria-label="Solor — Visão geral">solor</button><button className="solor-collapse" onClick={() => setCollapsed(!collapsed)} aria-label={collapsed ? 'Expandir navegação' : 'Recolher navegação'} aria-expanded={!collapsed}><ChevronLeft size={19} /></button></div>
+      <div className="solor-logo-row"><button className={`solor-logo${logo ? ' solor-logo--custom' : ''}`} onClick={() => onNavigate('overview')} aria-label="Empresa — Visão geral">{logo ? <img src={logo} alt="Logo da empresa" /> : 'solor'}</button><button className="solor-collapse" onClick={() => setCollapsed(!collapsed)} aria-label={collapsed ? 'Expandir navegação' : 'Recolher navegação'} aria-expanded={!collapsed}><ChevronLeft size={19} /></button></div>
       <span className="solor-nav-label">OPERAÇÕES / NOC</span>
       <nav>{items.map(({ page: target, icon: Icon }) => <button key={target} onClick={() => onNavigate(target)} className={page === target ? 'solor-nav-item is-active' : 'solor-nav-item'} aria-current={page === target ? 'page' : undefined} title={pageLabels[target]}><span className="solor-nav-icon"><Icon size={19} /></span><span className="solor-nav-text">{pageLabels[target]}</span>{page === target && <i />}</button>)}</nav>
       <span className="solor-nav-label">DADOS E PREFERÊNCIAS</span>

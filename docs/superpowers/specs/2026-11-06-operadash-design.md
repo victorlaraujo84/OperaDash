@@ -58,3 +58,12 @@ Os indicadores ITSM terão volumes separados de alertas, incidentes únicos e su
 Inspeção dos anexos: os CSVs Jira possuem 10.000 registros cada; nenhum inclui cabeçalho de motivo ou pai. Os campos de links disponíveis não mostraram correspondência exata entre chaves de incidentes e subtarefas dos dois anexos. A igualdade das contagens em 10.000 deve ser verificada como possível limite de exportação, sem presumir completude. Há informação útil nos comentários, mas ela não substitui o motivo estruturado solicitado.
 
 Pendente: exportação com Motivo do alarme e chave/ID do incidente pai (ou esclarecimento de qual relação representa o vínculo). O desenvolvimento do importador e das telas poderá contemplar campos ausentes com avisos, sem inventar causas ou relações.
+
+## Ajustes solicitados durante a validação
+- Seletores de colunas para alertas, incidentes e subtarefas, mantendo a detecção automática, opção de desativar campo, restaurar padrão e aplicar. Salvar o mapeamento junto ao arquivo e reaplicar ao restaurar a sessão. Permitir corrigir cabeçalhos mesmo quando o parser de alertas ainda não reconheceu os campos obrigatórios.
+- Upload local do logo da empresa em PNG, JPG ou WebP, com preview, troca, remoção e persistência local.
+- Ordenação crescente/decrescente independente nas tabelas de operadoras e localidades por nome, quantidade e disponibilidade. Valores não calculáveis no fim.
+- Conexão opcional com a API DeepSeek no site: chave somente em memória, catálogo de modelos autenticado, autorização explícita antes da geração, resumo agregado e pergunta, relatório exibido e exportável. Nenhum upload de planilha ao provedor. Sem chave real, verificar contrato com respostas sintéticas e informar limite da validação.
+- Rankings com nomes completos, valores em destaque, barras proporcionais e comparação mensal expansível, preservando os dados e links Jira.
+- Histórico mês a mês com totais e variações, independente do mês e intervalo de datas selecionados; preservar os demais filtros e identificar o escopo na interface. O gráfico principal continua refletindo o recorte selecionado.
+- Revisão posterior solicitada: retirar os cartões “Principais motivos das quedas” e “Validação dos motivos” da aba ITSM. Manter os demais indicadores, a correlação e a tabela de evidências.

@@ -1,5 +1,13 @@
 import * as XLSX from 'xlsx';
 
+export function inspectInputColumns(buffer: ArrayBuffer, fileName: string, requestedSheet?: string) {
+  const workbook = readInputWorkbook(buffer, fileName);
+  const sheetName = requestedSheet && workbook.SheetNames.includes(requestedSheet) ? requestedSheet : workbook.SheetNames[0];
+  if (!sheetName) throw new Error('O arquivo não contém uma tabela.');
+  const rows = XLSX.utils.sheet_to_json<unknown[]>(workbook.Sheets[sheetName], { header: 1, defval: '', raw: true, blankrows: false });
+  return { fileName, sheetName, sheetNames: workbook.SheetNames, totalRows: Math.max(0, rows.length - 1), detectedColumns: (rows[0] ?? []).map((value, index) => ({ column: String(value || `Coluna ${index + 1}`), field: null as string | null })), columnMapping: {} };
+}
+
 /** CSVs are decoded locally. Strings remain strings so Jira dates and IDs are not coerced. */
 export function readInputWorkbook(buffer: ArrayBuffer, fileName: string): XLSX.WorkBook {
   if (!/\.csv$/i.test(fileName)) return XLSX.read(buffer, { type: 'array', cellDates: true, dense: false });
