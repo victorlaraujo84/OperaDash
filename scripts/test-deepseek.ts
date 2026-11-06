@@ -1,0 +1,24 @@
+import assert from 'node:assert/strict';
+import { getDeepSeekModels, requestDeepSeekAnalysis } from '../src/lib/deepseek';
+let calls: { url: string; options?: RequestInit }[] = [];
+const transport: typeof fetch = async (input, options) => {
+  calls.push({ url: String(input), options });
+  return new Response(JSON.stringify(String(input).endsWith('/models') ? { data: [{ id: 'deepseek-flash', input_modalities: ['text'], output_modalities: ['text'] }, { id: 'image-only', input_modalities: ['image'], output_modalities: ['image'] }] } : { choices: [{ message: { content: 'Relatório verificado' } }] }), { status: 200 });
+};
+assert.deepEqual(await getDeepSeekModels('test-key', transport), ['deepseek-flash']);
+assert.equal(calls[0].url, 'https://api.deepseek.com/models');
+assert.equal(new Headers(calls[0].options?.headers).get('Authorization'), 'Bearer test-key');
+assert.equal(await requestDeepSeekAnalysis('test-key','deepseek-flash',[{role:'user',content:'Resumo agregado'}], transport), 'Relatório verificado');
+const request = JSON.parse(String(calls[1].options?.body));
+assert.equal(calls[1].url, 'https://api.deepseek.com/chat/completions');
+assert.equal(request.stream, false);
+assert.deepEqual(request.thinking, { type: 'disabled' });
+assert.equal(request.messages[0].content, 'Resumo agregado');
+assert.equal(calls[1].options?.credentials, 'omit');
+const reject: typeof fetch = async () => new Response('secret should never be shown', {status:401});
+await assert.rejects(getDeepSeekModels('test-key', reject), /chave/i);
+const before = calls.length;
+await assert.rejects(getDeepSeekModels('', transport));
+assert.equal(calls.length, before);
+await assert.rejects(requestDeepSeekAnalysis('test-key', '', [], transport));
+console.log('DeepSeek: official endpoints, authentication, payload, model filtering and errors passed');

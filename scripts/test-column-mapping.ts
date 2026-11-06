@@ -1,0 +1,24 @@
+import assert from 'node:assert/strict';
+import { parseItsmWorkbook } from '../src/lib/itsm-parser';
+import { parseWorkbook } from '../src/lib/xlsx-parser';
+import { correlateItsm } from '../src/lib/itsm-correlation';
+
+const buffer = (text: string) => new TextEncoder().encode(text).buffer;
+const source = buffer('Ticket próprio,Ticket relacionado,Causa operacional,Resumo,Comentários,Comentários\nINC-2,INC-1,Energia,Tarefa original,comentário 1,comentário 2');
+const custom = parseItsmWorkbook(source, 'custom.csv', undefined, { key: 0, parent: 1, reason: 2, summary: 3 });
+assert.equal(custom.records[0].key, 'INC-2');
+assert.equal(custom.records[0].parentKey, 'INC-1');
+assert.equal(custom.records[0].reason, 'Energia');
+assert.equal(custom.columnMapping?.reason, 2);
+assert.equal(custom.records[0].comments?.length, 2);
+const disable = parseItsmWorkbook(buffer('Chave da item,Motivo\nINC-2,Energia'), 'disabled.csv', undefined, { reason: null });
+assert.equal(disable.records[0].reason, '');
+assert.equal(disable.columnMapping?.reason, null);
+assert.throws(() => parseItsmWorkbook(source, 'bad.csv', undefined, { reason: 99 }), /coluna/i);
+const incident = parseItsmWorkbook(buffer('Chave da item,Resumo\nINC-1,LINK-A'), 'incidents.csv');
+const alarm = parseWorkbook(buffer('Evento,Ativo,Equipe,Inicio custom,Fim custom,Chamado\nICMP,LINK-A,noc-solor,01/10/2026 10:00:00,01/10/2026 11:00:00,INC-1'), 'custom-alarms.csv', undefined, { alarm: 0, device: 1, responsible: 2, start: 3, end: 4, ticket: 5 });
+assert.equal(alarm.records[0].durationMinutes, 60);
+assert.equal(correlateItsm(alarm.records, incident.records, custom.records).confirmedAlerts, 1);
+const duplicateHeader = parseItsmWorkbook(buffer('Chave da item,Comentários,Comentários\nINC-2,Primeiro,Segundo'), 'duplicates.csv', undefined, { reason: 2 });
+assert.equal(duplicateHeader.records[0].reason, 'Segundo');
+console.log('Column mapping: defaults, overrides, disabled columns, duplicate headers and correlation passed');

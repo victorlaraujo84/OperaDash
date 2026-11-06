@@ -1,0 +1,14 @@
+node_modules/
+dist/
+dist-extension/
+operadash-extension.zip
+*.tsbuildinfo
+.env*
+!.env.example
+.DS_Store
+artifacts/
+.local/
+*.csv
+*.xlsx
+*.xls
+*.zip
