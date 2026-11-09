@@ -11,7 +11,9 @@ coverage
 .DS_Store
 .local
 artifacts
+knime
 *.csv
 *.xlsx
 *.xls
 *.zip
+

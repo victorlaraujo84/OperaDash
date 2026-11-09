@@ -5,6 +5,7 @@ import { SubtaskUploadPanel } from './components/SubtaskUploadPanel';
 import { ItsmCorrelationPanel } from './components/ItsmCorrelationPanel';
 import { ColumnMappingPanel } from './components/ColumnMappingPanel';
 import { CompanyLogoSettings } from './components/CompanyLogoSettings';
+import { SourceTemplates } from "./components/SourceTemplates";
 import { alarmMappingFields, itsmMappingFields, type ColumnMapping } from './lib/column-mapping';
 import type { inspectInputColumns } from './lib/csv-workbook';
 import { getMonthlyHistory } from './lib/monthly-history';
@@ -764,6 +765,7 @@ export default function App() {
               />
               {inventoryData ? <DetectedColumnsPanel title="Colunas do inventário" fileName={inventoryData.fileName} sheetName={inventoryData.sheetName} totalRows={inventoryData.totalRows} columns={inventoryDetectedColumns} /> : null}
               <CompanyLogoSettings logo={companyLogo} onChange={setCompanyLogo} />
+              <SourceTemplates />
               <JiraSettings value={jiraBaseUrl} onChange={setJiraBaseUrl} />
               <DataQualityPanel filteredCount={filtered.length} durationIncluded={mttr.included} availabilityStatus={availability.status} availabilityExcluded={availability.excludedRecords} unmatchedAssets={availability.unmatchedAssets.length} inventoryLoaded={Boolean(inventoryData)} mtfbGroups={mtfbSummary.groupsWithBase} mtfbIntervals={mtfbSummary.intervals} />
             </aside>
@@ -914,3 +916,4 @@ export default function App() {
     </SolorShell>
   );
 }
+
