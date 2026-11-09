@@ -19,10 +19,10 @@ export const sourceTemplates = [
   },
   {
     label: "Subtarefas",
-    filename: "modelo-subtarefas.csv",
+    filename: "modelo-subtarefas.xlsx",
     rows: [
-      ["Chave do item", "ID do item", "Chave do incidente pai", "ID pai", "Resumo", "Motivo do alarme", "Status", "Responsável", "Criado", "Atualizado", "Resolvido"],
-      ["INC-1002", "10002", "INC-1001", "10001", "Verificar alimentação do LINK-EXEMPLO", "Falha de energia", "Fechado", "Equipe Exemplo", "01/10/2026 10:15:00", "01/10/2026 11:10:00", "01/10/2026 11:10:00"],
+      ["Chave do item", "ID do item", "Chave do incidente pai", "ID pai", "Resumo", "Motivo do alarme", "Status", "Responsável", "Criado", "Atualizado", "Resolvido", "TIPO", "TIPO_UND", "UND_NOME"],
+      ["INC-1002", "10002", "INC-1001", "10001", "Verificar alimentação do LINK-EXEMPLO", "Falha de energia", "Fechado", "Equipe Exemplo", "01/10/2026 10:15:00", "01/10/2026 11:10:00", "01/10/2026 11:10:00", "LINK", "Agência", "Unidade Exemplo"],
     ],
   },
   {
@@ -40,7 +40,14 @@ export function sourceTemplateCsv(rows: string[][]) {
   return "\uFEFF" + rows.map((row) => row.map(quote).join(";")).join("\r\n") + "\r\n";
 }
 
-function downloadTemplate(template: (typeof sourceTemplates)[number]) {
+async function downloadTemplate(template: (typeof sourceTemplates)[number]) {
+  if (template.filename.endsWith(".xlsx")) {
+    const { utils, writeFile } = await import("xlsx");
+    const workbook = utils.book_new();
+    utils.book_append_sheet(workbook, utils.aoa_to_sheet(template.rows), template.label);
+    writeFile(workbook, template.filename);
+    return;
+  }
   const url = URL.createObjectURL(new Blob([sourceTemplateCsv(template.rows)], { type: "text/csv;charset=utf-8" }));
   const link = document.createElement("a");
   link.href = url;
@@ -59,11 +66,11 @@ export function SourceTemplates() {
           <h2 id="source-templates-title">Modelos de planilhas</h2>
         </div>
       </div>
-      <p>Baixe os modelos CSV com os cabeçalhos reconhecidos. Substitua a linha fictícia pelos seus registros antes de importar.</p>
+      <p>Baixe os modelos com os cabeçalhos reconhecidos. Use Excel para subtarefas e CSV para as outras fontes. Substitua a linha fictícia pelos seus registros.</p>
       <div className="mapping-actions">
         {sourceTemplates.map((template) => (
           <button key={template.filename} type="button" className="button button--quiet" onClick={() => downloadTemplate(template)}>
-            <Download size={14} /> {template.label} CSV
+            <Download size={14} /> {template.label} {template.filename.endsWith(".xlsx") ? "XLSX" : "CSV"}
           </button>
         ))}
       </div>

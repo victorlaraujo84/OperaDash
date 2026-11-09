@@ -59,6 +59,15 @@ function dateBound(value: string, endOfDay: boolean): Date | null {
   return endOfDay ? new Date(year, month - 1, day, 23, 59, 59, 999) : new Date(year, month - 1, day, 0, 0, 0, 0);
 }
 
+export function dateInPeriod(filters: Pick<DashboardFilters, "month" | "from" | "to">) {
+  const from = dateBound(filters.from, false);
+  const to = dateBound(filters.to, true);
+  return (date: Date | null) => {
+    if (!date || Number.isNaN(date.getTime())) return filters.month === "all" && !from && !to;
+    return (filters.month === "all" || monthKey(date) === filters.month) && (!from || date >= from) && (!to || date <= to);
+  };
+}
+
 function includes(value: string, filter: string): boolean {
   return !filter || value.toLocaleLowerCase("pt-BR") === filter.toLocaleLowerCase("pt-BR");
 }
@@ -68,14 +77,10 @@ export function normalizeLocalityKey(value: string): string {
 }
 
 export function filterRecords(records: AlarmRecord[], filters: DashboardFilters): AlarmRecord[] {
-  const from = dateBound(filters.from, false);
-  const to = dateBound(filters.to, true);
+  const inPeriod = dateInPeriod(filters);
   const query = filters.search.trim().toLocaleLowerCase("pt-BR");
   return records.filter((record) => {
-    if (filters.month !== "all" && (!record.startedAt || monthKey(record.startedAt) !== filters.month)) return false;
-    if (record.startedAt && from && record.startedAt < from) return false;
-    if (record.startedAt && to && record.startedAt > to) return false;
-    if (!record.startedAt && (from || to)) return false;
+    if (!inPeriod(record.startedAt)) return false;
     if (!includes(record.operator, filters.operator)) return false;
     if (filters.locality && normalizeLocalityKey(record.locality) !== normalizeLocalityKey(filters.locality)) return false;
     if (!includes(record.responsible, filters.responsible)) return false;

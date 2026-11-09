@@ -11,6 +11,12 @@ export const itsmMappingFields: MappingField[] = [
   { key: 'due', label: 'Prazo' }, { key: 'link1', label: 'Link interno 1' }, { key: 'link2', label: 'Link interno 2' },
   { key: 'sourceType', label: 'Categoria / TIPO' }, { key: 'operator', label: 'Operadora' }, { key: 'locality', label: 'Localidade' },
 ];
+export const subtaskMappingFields: MappingField[] = [
+  ...itsmMappingFields,
+  { key: 'unitType', label: 'Tipo de unidade / TIPO_UND' },
+  { key: 'unitName', label: 'Nome da unidade / UND_NOME' },
+];
+
 export const alarmMappingFields: MappingField[] = [
   { key: 'alarm', label: 'Alarme / evento' }, { key: 'device', label: 'Dispositivo / ativo' },
   { key: 'start', label: 'Horário inicial' }, { key: 'end', label: 'Horário final' },

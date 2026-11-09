@@ -6,7 +6,7 @@ import { ItsmCorrelationPanel } from './components/ItsmCorrelationPanel';
 import { ColumnMappingPanel } from './components/ColumnMappingPanel';
 import { CompanyLogoSettings } from './components/CompanyLogoSettings';
 import { SourceTemplates } from "./components/SourceTemplates";
-import { alarmMappingFields, itsmMappingFields, type ColumnMapping } from './lib/column-mapping';
+import { alarmMappingFields, itsmMappingFields, subtaskMappingFields, type ColumnMapping } from './lib/column-mapping';
 import type { inspectInputColumns } from './lib/csv-workbook';
 import { getMonthlyHistory } from './lib/monthly-history';
 import { correlateItsm } from './lib/itsm-correlation';
@@ -75,6 +75,7 @@ import {
   getFlappingRows,
   getNetDowntime,
   monthLabel,
+  monthKey,
   normalizeLocalityKey,
   rankBy,
   rankByIncidentCount,
@@ -192,6 +193,12 @@ export default function App() {
   const [page, setPage] = useState<SolorPage>('overview');
   const [filtersExpanded, setFiltersExpanded] = useState(true);
   const [companyLogo, setCompanyLogo] = useState(() => { try { return localStorage.getItem('operadash:company-logo') ?? ''; } catch { return ''; } });
+  const [logoScale, setLogoScale] = useState(() => {
+    try {
+      const saved = Number(localStorage.getItem('operadash:company-logo-scale'));
+      return saved >= 50 && saved <= 100 ? saved : 100;
+    } catch { return 100; }
+  });
   const [alarmPreview, setAlarmPreview] = useState<ReturnType<typeof inspectInputColumns> | null>(null);
   const [subtaskFile, setSubtaskFile] = useState<File | null>(null);
   const [subtaskData, setSubtaskData] = useState<ItsmImportResult | null>(null);
@@ -435,9 +442,22 @@ export default function App() {
   const selectedYear = periodYear ?? (chartYear !== null && availableYears.includes(chartYear) ? chartYear : availableYears[0] ?? new Date().getFullYear());
   const monthOptions = useMemo(() => {
     const options = new Set(page === "itsm" || page === "inventory" ? getAvailableMonths(records) : months);
+    if (page === "itsm") {
+      for (const ticket of [...(itsmData?.records ?? []), ...(subtaskData?.records ?? [])]) {
+        if (ticket.createdAt && !Number.isNaN(ticket.createdAt.getTime())) options.add(monthKey(ticket.createdAt));
+      }
+    }
     if (filters.month !== "all") options.add(filters.month);
     return [...options].sort((a, b) => b.localeCompare(a));
-  }, [months, filters.month, records, page]);
+  }, [months, filters.month, records, page, itsmData, subtaskData]);
+  const itsmLatestMonth = useMemo(() => [
+    ...getAvailableMonths(records),
+    ...(itsmData?.records ?? []).flatMap(ticket => ticket.createdAt && !Number.isNaN(ticket.createdAt.getTime()) ? [monthKey(ticket.createdAt)] : []),
+    ...(subtaskData?.records ?? []).flatMap(ticket => ticket.createdAt && !Number.isNaN(ticket.createdAt.getTime()) ? [monthKey(ticket.createdAt)] : []),
+  ].sort().at(-1), [records, itsmData, subtaskData]);
+  const quickMonth = page === "itsm"
+    ? itsmLatestMonth ? monthKey(new Date(Number(itsmLatestMonth.slice(0, 4)), Number(itsmLatestMonth.slice(5)) - 2, 1)) : "all"
+    : getDefaultMonth(chartScopeRecords);
   const availableFilters = useMemo(() => {
     const localityOptions = new Map<string, string>();
     const inventoryLocalities = inventoryData?.assets.filter((asset) => asset.categories.includes(activeTab)).flatMap((asset) => asset.locality ? [asset.locality] : []) ?? [];
@@ -703,7 +723,7 @@ export default function App() {
                 </div>
                 {dateRangeError ? <p className="filter-error"><AlertTriangle size={13} />A data inicial precisa ser anterior à data final.</p> : null}
                 <div className="filter-bottom-row">
-                  <div className="quick-period"><button className="quick-period__button" onClick={() => setFilters((current) => ({ ...current, month: getDefaultMonth(chartScopeRecords), from: "", to: "" }))}><CalendarDays size={13} />Mês anterior</button><span>padrão: mês anterior ao último registro que atende aos filtros operacionais</span></div>
+                  <div className="quick-period"><button className="quick-period__button" onClick={() => setFilters((current) => ({ ...current, month: quickMonth, from: "", to: "" }))}><CalendarDays size={13} />Mês anterior</button><span>{page === "itsm" ? "Mês anterior ao último registro das fontes ITSM ou de alertas" : "Mês anterior ao último registro que atende aos filtros operacionais"}</span></div>
                   <label className="search-field"><Search size={15} /><input aria-label="Buscar alarmes, links, tickets, operadoras ou campos ITSM" value={filters.search} onChange={(event) => updateFilter("search", event.target.value)} placeholder="Buscar alarme, link, ticket…" /><kbd>⌕</kbd></label>
                 </div>
                 </div>
@@ -711,7 +731,7 @@ export default function App() {
   );
 
   return (
-    <SolorShell page={page} onNavigate={navigate} logo={companyLogo}>
+    <SolorShell page={page} onNavigate={navigate} logo={companyLogo} logoScale={logoScale}>
     <div className={`app-shell solor-page solor-page--${page}`}>
       <header className="topbar">
         <a className="brand" href="./index.html" aria-label="Painel NOC Operadoras">
@@ -747,9 +767,9 @@ export default function App() {
               {data?.warnings.length ? <details className="itsm-warnings sidebar-source-warnings"><summary><AlertTriangle size={13} />{formatNumber(data.warnings.length)} aviso(s) dos alarmes</summary><ul>{data.warnings.map((warning) => <li key={warning}>{warning}</li>)}</ul></details> : null}
               <ItsmUploadPanel fileName={itsmData?.fileName ?? null} result={itsmData} summary={itsmSummary} busy={itsmBusy} error={itsmError} onSelect={() => itsmInputRef.current?.click()} onRemove={removeItsm} onSheetChange={(sheetName) => { if (itsmFile) void processItsmFile(itsmFile, sheetName); }} />
               {itsmData ? <ColumnMappingPanel title="Mapear colunas de incidentes" fileName={itsmData.fileName} sheetName={itsmData.sheetName} totalRows={itsmData.totalRows} columns={itsmData.detectedColumns} mapping={itsmData.columnMapping} fields={itsmMappingFields} busy={itsmBusy} onApply={mapping => { if (itsmFile) void processItsmFile(itsmFile, itsmData.sheetName, mapping); }} /> : null}
-              <input ref={subtaskInputRef} type="file" accept=".csv,.xlsx" className="visually-hidden" aria-label="Importar subtarefas Jira CSV ou XLSX" onChange={event => { const file = event.target.files?.[0]; if (file) void processSubtasks(file); event.target.value = ''; }} />
+              <input ref={subtaskInputRef} type="file" accept=".csv,.xlsx" className="visually-hidden" aria-label="Importar subtarefas Jira XLSX" onChange={event => { const file = event.target.files?.[0]; if (file) void processSubtasks(file); event.target.value = ''; }} />
               <SubtaskUploadPanel result={subtaskData} busy={subtaskBusy} error={subtaskError} onSelect={() => subtaskInputRef.current?.click()} onRemove={() => { setSubtaskData(null); setSubtaskFile(null); setSubtaskError(''); void removeImportedDocument('subtasks'); }} />
-              {subtaskData ? <ColumnMappingPanel title="Mapear colunas de subtarefas" fileName={subtaskData.fileName} sheetName={subtaskData.sheetName} totalRows={subtaskData.totalRows} columns={subtaskData.detectedColumns} mapping={subtaskData.columnMapping} fields={itsmMappingFields} busy={subtaskBusy} onApply={mapping => { if (subtaskFile) void processSubtasks(subtaskFile, subtaskData.sheetName, mapping); }} /> : null}
+              {subtaskData ? <ColumnMappingPanel title="Mapear colunas de subtarefas" fileName={subtaskData.fileName} sheetName={subtaskData.sheetName} totalRows={subtaskData.totalRows} columns={subtaskData.detectedColumns} mapping={subtaskData.columnMapping} fields={subtaskMappingFields} busy={subtaskBusy} onApply={mapping => { if (subtaskFile) void processSubtasks(subtaskFile, subtaskData.sheetName, mapping); }} /> : null}
               <InventoryUploadPanel
                 fileName={inventoryData?.fileName ?? null}
                 result={inventoryData}
@@ -764,7 +784,7 @@ export default function App() {
                 onLocalityColumnChange={(columnIndex) => { if (inventoryFile && inventoryData) void processInventoryFile(inventoryFile, inventoryData.sheetName, inventoryData.hostColumnIndex ?? undefined, inventoryData.categoryColumnIndex, columnIndex, inventoryData.operatorColumnIndex); }}
               />
               {inventoryData ? <DetectedColumnsPanel title="Colunas do inventário" fileName={inventoryData.fileName} sheetName={inventoryData.sheetName} totalRows={inventoryData.totalRows} columns={inventoryDetectedColumns} /> : null}
-              <CompanyLogoSettings logo={companyLogo} onChange={setCompanyLogo} />
+              <CompanyLogoSettings logo={companyLogo} onChange={setCompanyLogo} scale={logoScale} onScaleChange={setLogoScale} />
               <SourceTemplates />
               <JiraSettings value={jiraBaseUrl} onChange={setJiraBaseUrl} />
               <DataQualityPanel filteredCount={filtered.length} durationIncluded={mttr.included} availabilityStatus={availability.status} availabilityExcluded={availability.excludedRecords} unmatchedAssets={availability.unmatchedAssets.length} inventoryLoaded={Boolean(inventoryData)} mtfbGroups={mtfbSummary.groupsWithBase} mtfbIntervals={mtfbSummary.intervals} />
@@ -773,7 +793,7 @@ export default function App() {
           <div className="dashboard-primary">
           {(page === "itsm" || page === "inventory") ? scopeFilters : null}
         {page === 'overview' ? <Overview data={data} incidents={itsmData} subtasks={subtaskData} inventory={inventoryData} onNavigate={navigate} /> : page === 'sources' ? null : page === 'itsm' ? <>
-          <ItsmCorrelationPanel alerts={filterRecords(records, filters)} incidents={itsmData} subtasks={subtaskData} hasAlerts={Boolean(data)} filters={filters} />
+          <ItsmCorrelationPanel alerts={filterRecords(records, filters)} allAlerts={records} incidents={itsmData} subtasks={subtaskData} hasAlerts={Boolean(data)} filters={filters} />
           {data && <details className="solor-legacy-details"><summary>Indicadores operacionais complementares · {activeTab === 'links' ? 'Links' : 'Dispositivos'}</summary><ItsmIndicatorsPanel summary={itsmIndicators} hasItsm={Boolean(itsmData)} categoryLabel={activeTab === 'links' ? 'Links' : 'Dispositivos'} periodLabel={monthTitle} /></details>}
         </> : page === 'inventory' ? <InventoryPanel summary={inventorySummary} periodLabel={monthTitle} /> : page === 'ai' ? <LocalAIAssistant context={localAiContext} hasDashboardData={Boolean(data)} /> : data ? (
           <>
@@ -916,4 +936,3 @@ export default function App() {
     </SolorShell>
   );
 }
-

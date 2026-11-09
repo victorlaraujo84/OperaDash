@@ -23,6 +23,8 @@ export interface ItsmIncident {
   reason?: string;
   itemType?: string;
   sourceType?: string;
+  unitType?: string;
+  unitName?: string;
   operator?: string;
   locality?: string;
   responsible: string;
