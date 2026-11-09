@@ -11,15 +11,18 @@ RUN pnpm install --frozen-lockfile
 COPY . .
 RUN pnpm build
 
-FROM nginx:1.27-alpine AS runtime
+FROM node:24-alpine AS runtime
+WORKDIR /app
 
-COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
-COPY --from=build /app/dist /usr/share/nginx/html
+RUN mkdir /data && chown node:node /data
+COPY server/portal.mjs server/start.mjs ./server/
+COPY --from=build /app/dist ./dist
+ENV OPERADASH_DATA_DIR=/data
+USER node
 
 EXPOSE 80
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD wget --quiet --tries=1 --spider http://127.0.0.1/healthz || exit 1
 
-CMD ["nginx", "-g", "daemon off;"]
-
+CMD ["node", "server/start.mjs"]

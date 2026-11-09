@@ -1,14 +1,15 @@
 # OperaDash — padrão Solor
 
-Aplicação local em React + TypeScript com navegação no padrão visual Solor. Inclui Visão geral, Links, Dispositivos, Indicadores ITSM, Inventário, Análise IA e Fontes e configurações.
+Portal em React + TypeScript com navegação no padrão visual Solor. Inclui Visão geral, Links, Dispositivos, Indicadores ITSM, Inventário, Análise IA e Fontes e configurações.
 
 ## Executar
 
 Requer Node.js 24+ e pnpm 11.25.0.
 
 - Instalar: pnpm install --frozen-lockfile
-- Abrir: pnpm dev — http://localhost:4173
-- Verificar: pnpm test e pnpm build
+- Inicie a API com `node --env-file=.env server/start.mjs`. Para desenvolvimento, configure `PORT=8787`, `HOST=127.0.0.1` e as credenciais iniciais em `.env`.
+- Abra `pnpm dev --host 127.0.0.1` em outro terminal e acesse http://localhost:4173.
+- Verifique com `pnpm test`, `node --test server/portal.test.mjs` e `pnpm build`.
 - Extensão Chrome: pnpm package:extension
 
 ## Fontes e correlação
@@ -21,9 +22,9 @@ O ITSM usa o período do alerta para selecionar os incidentes e suas subtarefas;
 
 Os três CSVs fornecidos para validação resultaram em 51.550 alertas e 10.000 registros em cada fonte Jira. Os anexos de subtarefas não contêm motivo ou pai; a ferramenta apresenta essa lacuna, sem inferir causas. Contagens de 10.000 linhas recebem aviso de possível limitação da exportação.
 
-Os arquivos operacionais permanecem no navegador (IndexedDB), podem ser removidos na interface e são ignorados pelo Git. Nenhum arquivo de entrada foi incluído no repositório. A IA web mantém os prompts e oferece conexão DeepSeek opcional; provedores da extensão mantêm os consentimentos existentes.
+No portal, o administrador publica as fontes no servidor para o cliente selecionado. A extensão usa IndexedDB. Os arquivos podem ser removidos na interface e são ignorados pelo Git. Nenhum arquivo de entrada foi incluído no repositório. A IA web mantém os prompts e oferece conexão DeepSeek opcional; provedores da extensão mantêm os consentimentos existentes.
 
-Em Fontes e configurações, adicione o logo da empresa (PNG/JPG/WebP até 2 MB), troque ou remova. A imagem fica somente no navegador. Não existe login simulado.
+Em Fontes e configurações, adicione o logo da empresa (PNG/JPG/WebP até 2 MB), troque ou remova. A imagem fica somente no navegador.
 
 ## Ajustes de colunas e visualização
 
@@ -102,44 +103,27 @@ Requer Node.js e pnpm. O parser SheetJS 0.20.3 é instalado da distribuição of
 
 ```bash
 pnpm install
-pnpm dev
+pnpm dev --host 127.0.0.1
 ```
 
-Para validar e compilar a saída Web:
+Inicie também a API na porta 8787, conforme a seção Executar. Para validar e compilar a saída Web:
 
 ```bash
 pnpm typecheck
 pnpm build
 ```
 
-## Empacotamento Docker
+## Acesso ao portal e Docker
 
-O Operadash também pode ser executado como um container estático. O `Dockerfile` usa duas etapas: Node.js/Pnpm somente para compilar o frontend e Nginx Alpine para servir o resultado final. Nenhuma chave de IA, planilha ou dado do usuário é incluído na imagem. O processamento continua no navegador, assim como no site publicado.
+O portal usa conta e senha próprias. O servidor autoriza cada leitura ou alteração de arquivo pelo cliente associado. O administrador cadastra clientes, cria contas, redefine senhas e desativa acessos. Cada usuário de consulta vê somente o próprio cliente e troca a senha inicial no primeiro acesso.
 
-Para gerar a imagem:
+1. Crie um arquivo `.env` local junto ao `docker-compose.yml`. O usuário inicial padrão é `admlocal`. Defina `OPERADASH_ADMIN_PASSWORD` com uma senha forte de 12 a 128 caracteres. A senha inicial só é usada quando o banco ainda não tem um administrador.
+2. Em um teste na própria máquina, defina `OPERADASH_ALLOW_HTTP=1`. A porta padrão é 8080 e o Compose publica em 127.0.0.1. Para produção, mantenha `OPERADASH_ALLOW_HTTP=0`, defina `OPERADASH_TRUST_PROXY=1` e publique o portal por HTTPS no proxy reverso. Restrinja o acesso direto à porta interna e configure o proxy para sobrescrever `X-Real-IP` com o endereço real do visitante. No Nginx, use `proxy_set_header X-Real-IP $remote_addr;` e `client_max_body_size 64m;`. A API usa esse endereço para limitar tentativas de login por visitante.
+3. Execute `docker compose up --build -d`. Confira `docker compose ps` e acesse o portal. A rota `/healthz` responde sem sessão para a verificação de saúde.
+4. Entre como administrador, cadastre o cliente e uma conta de consulta. Selecione o cliente ativo e envie os arquivos em **Fontes e configurações**. Reimporte as planilhas que antes estavam salvas apenas no navegador, selecionando o cliente correto.
+5. Preserve o volume `operadash-data`, que contém contas e planilhas. Depois de iniciar e conferir a conta, remova a senha de configuração do `.env` e recrie o contêiner com `docker compose up -d`, mantendo o volume.
 
-```bash
-docker build -t operadash:latest .
-```
-
-Para executar diretamente:
-
-```bash
-docker run --rm --name operadash -p 8080:80 operadash:latest
-```
-
-Abra `http://localhost:8080`. O endpoint `http://localhost:8080/healthz` retorna `ok` e pode ser usado por um balanceador, Kubernetes ou plataforma de container.
-
-Também é possível usar o Compose:
-
-```bash
-docker compose up --build -d
-docker compose ps
-docker compose logs -f operadash
-docker compose down
-```
-
-O Nginx possui fallback para `index.html`, cache de assets versionados e não-cache para a aplicação e `manus-routes.json`. As integrações Groq, OpenAI-compatible, Jira e SharePoint público continuam sendo chamadas pelo navegador conforme a configuração local do usuário; o container não recebe essas chaves.
+A análise das planilhas continua no navegador depois que o servidor autoriza o download. Use o build da extensão para o fluxo local com IndexedDB.
 
 ## Extensão Chrome
 

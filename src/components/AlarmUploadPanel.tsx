@@ -41,7 +41,7 @@ export function AlarmUploadPanel({ result, busy, error, dragging, onSelect, onRe
         </div>
       ) : (
         <div className="sidebar-source-panel__empty">
-          <p>Importe o AlarmReport em CSV ou XLSX. O arquivo não sai deste navegador.</p>
+          <p>Importe o AlarmReport em CSV ou XLSX.</p>
           <button type="button" className="button button--primary button--small" onClick={onSelect} disabled={busy}><Upload size={13} />Selecionar alarmes</button>
           <small>ou arraste o arquivo para esta área</small>
         </div>

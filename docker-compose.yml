@@ -6,7 +6,14 @@ services:
     image: operadash:local
     container_name: operadash
     ports:
-      - "8080:80"
+      - "${OPERADASH_BIND:-127.0.0.1}:${OPERADASH_PORT:-8080}:80"
+    environment:
+      OPERADASH_ADMIN_LOGIN: ${OPERADASH_ADMIN_LOGIN:-admlocal}
+      OPERADASH_ADMIN_PASSWORD: ${OPERADASH_ADMIN_PASSWORD:-}
+      OPERADASH_ALLOW_HTTP: ${OPERADASH_ALLOW_HTTP:-0}
+      OPERADASH_TRUST_PROXY: ${OPERADASH_TRUST_PROXY:-0}
+    volumes:
+      - operadash-data:/data
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1/healthz"]
@@ -14,3 +21,5 @@ services:
       timeout: 3s
       retries: 3
       start_period: 5s
+volumes:
+  operadash-data:

@@ -27,7 +27,7 @@ export function InventoryUploadPanel({ fileName, result, busy, error, onSelect, 
         <div className="panel-heading__copy">
           <span className="section-kicker">BASE DO DENOMINADOR</span>
           <h2 id="inventory-panel-title">Inventário de hosts</h2>
-          <p>Importe ativos, links monitorados e, para calcular por cidade, a coluna de localidade. O arquivo é lido somente neste navegador.</p>
+          <p>Importe ativos, links monitorados e, para calcular por cidade, a coluna de localidade.</p>
         </div>
         <div className="itsm-upload-panel__actions">
           {fileName ? <button className="button button--quiet button--small" onClick={onSelect} disabled={busy}><RefreshCw size={13} />Trocar inventário</button> : null}

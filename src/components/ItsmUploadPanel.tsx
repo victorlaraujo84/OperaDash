@@ -37,7 +37,7 @@ export function ItsmUploadPanel({ fileName, result, summary, busy, error, onSele
 
       {result && fileName ? (
         <div className="itsm-upload-panel__body">
-          <div className="itsm-file-summary"><span className="file-status-icon"><FileSpreadsheet size={16} /></span><div><strong>{fileName}</strong><p><span className="success-dot" />{formatNumber(result.totalRows)} tickets · aba {result.sheetName} · arquivo mantido neste navegador</p></div></div>
+          <div className="itsm-file-summary"><span className="file-status-icon"><FileSpreadsheet size={16} /></span><div><strong>{fileName}</strong><p><span className="success-dot" />{formatNumber(result.totalRows)} tickets · aba {result.sheetName}</p></div></div>
           {result.sheetNames.length > 1 ? <label className="filter-field sidebar-sheet-field"><span>Aba ITSM</span><span className="select-wrap"><select value={result.sheetName} onChange={(event) => onSheetChange(event.target.value)}>{result.sheetNames.map((sheet) => <option key={sheet} value={sheet}>{sheet}</option>)}</select><ChevronDown size={13} /></span></label> : null}
           {summary ? (
             <div className="itsm-link-summary" aria-label="Resumo do join ITSM">

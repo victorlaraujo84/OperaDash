@@ -8,6 +8,7 @@ const projectRoot = fileURLToPath(new URL(".", import.meta.url));
 export default defineConfig({
   root: projectRoot,
   base: "./",
+  define: { "import.meta.env.VITE_OPERADASH_EXTENSION": JSON.stringify("1") },
   plugins: [react()],
   build: {
     outDir: resolve(projectRoot, "dist-extension"),

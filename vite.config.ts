@@ -7,6 +7,7 @@ export default defineConfig({
     host: "0.0.0.0",
     port: 4173,
     strictPort: true,
+    proxy: { "/api": "http://127.0.0.1:8787" },
     allowedHosts: [
       "3000-i3xvbfamyz258eb6k7l74-bee21904.us3.manus.computer",
       "8328-i3xvbfamyz258eb6k7l74-bee21904.us3.manus.computer",

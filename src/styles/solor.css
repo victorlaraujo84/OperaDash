@@ -197,3 +197,22 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 
 .subtask-analysis__filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 185px), 1fr)); gap: 12px; }
 .subtask-analysis__filters .filter-field { min-width: 0; }
+
+.portal-access { min-height: 100dvh; display: grid; place-items: center; padding: 24px; background: linear-gradient(120deg, #edf3fc, #f6f8fb); }
+.portal-access .portal-access__card, .portal-admin .panel { background: #fff; color: #132c4b; border: 1px solid #e2e9f2; border-radius: 16px; box-shadow: 0 10px 24px #19355010; }
+.portal-access__card { width: min(100%, 420px); padding: 28px; }
+.portal-access__card h1, .portal-admin h1 { font-size: 26px; }
+.portal-access__brand { display: flex; align-items: center; gap: 10px; margin: -28px -28px 24px; padding: 22px 28px; background: linear-gradient(120deg, #203f6b, #193550); color: #fff; font-size: 19px; font-weight: 650; border-radius: 15px 15px 0 0; }
+.portal-form { display: grid; align-content: start; gap: 13px; margin: 16px 0; }
+.portal-form label { display: grid; gap: 5px; font-size: 13px; font-weight: 600; }
+.portal-form input, .portal-form select, .portal-toolbar select { background: #fff; color: #132c4b; font: inherit; border: 1px solid #cdd9e8; border-radius: 7px; padding: 9px; }
+.button.portal-primary { background: #3068b4; color: #fff; border-color: #3068b4; justify-content: center; }
+.portal-toolbar { display: flex; gap: 10px 16px; align-items: center; flex-wrap: wrap; padding: 10px 20px; border-bottom: 1px solid #e2e9f2; background: #fff; }
+.portal-toolbar > span { margin-right: auto; }
+.portal-toolbar select { max-width: min(48vw, 260px); }
+.portal-admin { width: min(1220px, 100%); margin: 0 auto; padding: 26px 20px; }
+.portal-admin__forms { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 14px; }
+.portal-admin__forms form, .portal-admin__accounts { padding: 18px; }
+.portal-admin h2 { font-size: 17px; margin: 0 0 8px; }
+.portal-error { margin: 12px 20px; }
+.portal-access [role=alert], .portal-admin [role=alert], .portal-error { color: #9b2525; }
