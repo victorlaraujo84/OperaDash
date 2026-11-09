@@ -189,6 +189,7 @@ function exportCsv(rows: AlarmRecord[], category: AlarmCategory) {
 
 export default function App() {
   const [page, setPage] = useState<SolorPage>('overview');
+  const [filtersExpanded, setFiltersExpanded] = useState(true);
   const [companyLogo, setCompanyLogo] = useState(() => { try { return localStorage.getItem('operadash:company-logo') ?? ''; } catch { return ''; } });
   const [alarmPreview, setAlarmPreview] = useState<ReturnType<typeof inspectInputColumns> | null>(null);
   const [subtaskFile, setSubtaskFile] = useState<File | null>(null);
@@ -667,9 +668,25 @@ export default function App() {
               <section className="filter-panel panel">
                 <div className="filter-panel__heading">
                   <div className="panel-heading__icon"><CalendarDays size={17} /></div>
-                  <div className="panel-heading__copy"><h2>Recorte operacional</h2><p>Os indicadores são recalculados a cada alteração</p></div>
-                  <div className="filter-panel__actions"><span className="filter-result"><span className="live-dot" />{formatNumber(page === "itsm" ? filterRecords(records, filters).length : filtered.length)} no recorte</span><button className="button button--quiet button--small" onClick={resetFilters}><FilterX size={14} />Limpar filtros</button></div>
+                  <div className="panel-heading__copy">
+                    <h2>Recorte operacional</h2>
+                    <p>{filtersExpanded ? "Os indicadores são recalculados a cada alteração" : monthTitle}</p>
+                  </div>
+                  <div className="filter-panel__actions" style={{ flexWrap: "wrap" }}>
+                    <span className="filter-result"><span className="live-dot" />{formatNumber(page === "itsm" ? filterRecords(records, filters).length : filtered.length)} no recorte</span>
+                    {filtersExpanded && <button className="button button--quiet button--small" type="button" onClick={resetFilters}><FilterX size={14} />Limpar filtros</button>}
+                    <button
+                      className="button button--quiet button--small"
+                      type="button"
+                      aria-expanded={filtersExpanded}
+                      aria-controls="operational-filter-controls"
+                      onClick={() => setFiltersExpanded((expanded) => !expanded)}
+                    >
+                      {filtersExpanded ? "Ocultar filtros" : "Mostrar filtros"}
+                    </button>
+                  </div>
                 </div>
+                <div id="operational-filter-controls" hidden={!filtersExpanded}>
                 <div className="filters-grid">
                   <label className="filter-field filter-field--period"><span>Período / mês</span><span className="select-wrap"><select value={filters.month} onChange={(event) => updateFilter("month", event.target.value)}><option value="all">Todos os meses</option>{monthOptions.map((month) => <option key={month} value={month}>{monthLabel(month)}</option>)}</select><ChevronDown size={14} /></span></label>
                   <label className="filter-field"><span>De</span><input type="date" value={filters.from} onChange={(event) => updateFilter("from", event.target.value)} aria-label="Data inicial" /></label>
@@ -687,6 +704,7 @@ export default function App() {
                 <div className="filter-bottom-row">
                   <div className="quick-period"><button className="quick-period__button" onClick={() => setFilters((current) => ({ ...current, month: getDefaultMonth(chartScopeRecords), from: "", to: "" }))}><CalendarDays size={13} />Mês anterior</button><span>padrão: mês anterior ao último registro que atende aos filtros operacionais</span></div>
                   <label className="search-field"><Search size={15} /><input aria-label="Buscar alarmes, links, tickets, operadoras ou campos ITSM" value={filters.search} onChange={(event) => updateFilter("search", event.target.value)} placeholder="Buscar alarme, link, ticket…" /><kbd>⌕</kbd></label>
+                </div>
                 </div>
               </section>
   );
