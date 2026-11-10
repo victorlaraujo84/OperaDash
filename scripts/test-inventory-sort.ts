@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import { sortInventoryRows } from '../src/lib/inventory-sort';
+import type { InventoryDimensionRow } from '../src/types/operadora';
+const row = (name: string, links: number, assets: number, percent: number | null): InventoryDimensionRow => ({ name, links, assets, availabilityPercent: percent, availabilityStatus: 'available', monitoredHours: 100, downtimeHours: 0 });
+const rows = [row('Z', 2, 8, null), row('B', 10, 5, 99), row('A', 10, 20, 98)];
+assert.deepEqual(sortInventoryRows(rows, 'links', 'desc').map(r=>r.name), ['A','B','Z']);
+assert.deepEqual(sortInventoryRows(rows, 'assets', 'asc').map(r=>r.name), ['B','Z','A']);
+assert.deepEqual(sortInventoryRows(rows, 'availabilityPercent', 'desc').map(r=>r.name), ['B','A','Z']);
+assert.deepEqual(sortInventoryRows(rows, 'availabilityPercent', 'asc').map(r=>r.name), ['A','B','Z']);
+assert.deepEqual(sortInventoryRows(rows, 'name', 'asc').map(r=>r.name), ['A','B','Z']);
+assert.equal(rows[0].name, 'Z', 'Sorting must not mutate shared source rows');
+console.log('Inventory sorting: numeric ascending/descending, stable ties and null-last passed');

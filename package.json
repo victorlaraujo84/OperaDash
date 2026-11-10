@@ -1,0 +1,51 @@
+{
+  "name": "operadash",
+  "private": true,
+  "version": "1.0.0",
+  "packageManager": "pnpm@11.25.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0 --port 4173 --strictPort",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview --host 0.0.0.0 --port 4173 --strictPort",
+    "typecheck": "tsc --noEmit",
+    "build:extension": "pnpm typecheck && vite build --config vite.extension.config.ts && node scripts/prepare-extension.mjs",
+    "package:extension": "pnpm build:extension && node scripts/create-extension-zip.mjs",
+    "test:local-ai": "tsx scripts/test-local-ai-bridge.ts",
+    "test:availability": "tsx scripts/test-availability-locality.ts",
+    "test:inventory-indicators": "tsx scripts/test-inventory-indicators.ts",
+    "test:month-comparison": "tsx scripts/test-month-comparison.ts",
+    "test:inventory-parser": "tsx scripts/test-inventory-parser.ts",
+    "test:mtfb": "tsx scripts/test-mtfb.ts",
+    "test:itsm-indicators": "tsx scripts/test-itsm-indicators.ts",
+    "test:operational-analytics": "tsx scripts/test-operational-analytics.ts",
+    "test:classification": "tsx scripts/test-classification.ts",
+    "test:itsm-dimensions": "tsx scripts/test-itsm-dimensions.ts",
+    "test:itsm-dates": "tsx scripts/test-itsm-date-parser.ts",
+    "test:jira-links": "tsx scripts/test-jira-links.ts",
+    "test:sharepoint-link": "tsx scripts/test-sharepoint-link.ts",
+    "test": "node scripts/run-tests.mjs",
+    "test:csv-correlation": "tsx scripts/test-csv-correlation.ts"
+  },
+  "dependencies": {
+    "@fontsource-variable/ibm-plex-sans": "5.3.0",
+    "@fontsource/ibm-plex-mono": "5.3.0",
+    "html-to-image": "^1.11.13",
+    "lucide-react": "^1.52.0",
+    "marked": "^15.0.12",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "recharts": "^3.10.1",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
+  },
+  "devDependencies": {
+    "@types/chrome": "0.3.4",
+    "@types/node": "^22.20.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.1",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.2"
+  }
+}

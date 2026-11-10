@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "Operadash · NOC / Operadoras",
+  "version": "1.0.0",
+  "description": "Painel operacional local de alarmes, disponibilidade e tickets ITSM.",
+  "action": {
+    "default_title": "Abrir Operadash"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "optional_host_permissions": [
+    "http://127.0.0.1/*",
+    "http://localhost/*",
+    "https://api.groq.com/*",
+    "https://api.openai.com/*",
+    "https://api.deepseek.com/*",
+    "https://openrouter.ai/*",
+    "https://graph.microsoft.com/*",
+    "https://login.microsoftonline.com/*"
+  ],
+  "permissions": [
+    "storage"
+  ]
+}

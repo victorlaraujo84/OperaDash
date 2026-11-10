@@ -1,0 +1,5 @@
+{$OPERADASH_DOMAIN} {
+	reverse_proxy operadash:80 {
+		header_up X-Real-IP {remote_host}
+	}
+}
