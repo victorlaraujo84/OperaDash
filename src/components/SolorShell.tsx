@@ -8,14 +8,14 @@ const items = [
   { page: 'itsm', icon: Ticket }, { page: 'inventory', icon: Boxes }, { page: 'ai', icon: BrainCircuit },
 ] as const;
 
-export function SolorShell({ page, onNavigate, children, logo = '', logoScale = 100, readOnly = false, shared = false }: { page: SolorPage; onNavigate: (page: SolorPage) => void; children: ReactNode; logo?: string; logoScale?: number; readOnly?: boolean; shared?: boolean }) {
+export function SolorShell({ page, onNavigate, children, logo = '', logoScale = 100, readOnly = false, canUseAi = true, shared = false }: { page: SolorPage; onNavigate: (page: SolorPage) => void; children: ReactNode; logo?: string; logoScale?: number; readOnly?: boolean; canUseAi?: boolean; shared?: boolean }) {
   const [collapsed, setCollapsed] = useState(false);
   return <div className={`solor-layout${collapsed ? ' solor-layout--collapsed' : ''}`}>
     <a className="solor-skip" href="#solor-main">Ir para o conteúdo</a>
     <aside className="solor-nav" aria-label="Navegação principal">
       <div className="solor-logo-row"><button className={`solor-logo${logo ? ' solor-logo--custom' : ''}`} onClick={() => onNavigate('overview')} aria-label="Empresa — Visão geral">{logo ? <span className="company-logo-frame"><img src={logo} alt="" width={112} height={42} style={{ width: logoScale + '%', height: logoScale + '%' }} /></span> : 'solor'}</button><button className="solor-collapse" onClick={() => setCollapsed(!collapsed)} aria-label={collapsed ? 'Expandir navegação' : 'Recolher navegação'} aria-expanded={!collapsed}><ChevronLeft size={19} /></button></div>
       <span className="solor-nav-label">OPERAÇÕES / NOC</span>
-      <nav>{items.filter(item => !readOnly || item.page !== 'ai').map(({ page: target, icon: Icon }) => <button key={target} onClick={() => onNavigate(target)} className={page === target ? 'solor-nav-item is-active' : 'solor-nav-item'} aria-current={page === target ? 'page' : undefined} title={pageLabels[target]} aria-label={pageLabels[target]}><span className="solor-nav-icon"><Icon size={19} /></span><span className="solor-nav-text">{pageLabels[target]}</span>{page === target && <i />}</button>)}</nav>
+      <nav>{items.filter(item => canUseAi || item.page !== 'ai').map(({ page: target, icon: Icon }) => <button key={target} onClick={() => onNavigate(target)} className={page === target ? 'solor-nav-item is-active' : 'solor-nav-item'} aria-current={page === target ? 'page' : undefined} title={pageLabels[target]} aria-label={pageLabels[target]}><span className="solor-nav-icon"><Icon size={19} /></span><span className="solor-nav-text">{pageLabels[target]}</span>{page === target && <i />}</button>)}</nav>
       {!readOnly && <><span className="solor-nav-label">DADOS E PREFERÊNCIAS</span>
       <button onClick={() => onNavigate('sources')} className={`solor-nav-item${page === 'sources' ? ' is-active' : ''}`} aria-current={page === 'sources' ? 'page' : undefined} title="Fontes e configurações" aria-label="Fontes e configurações"><span className="solor-nav-icon"><Database size={19} /></span><span className="solor-nav-text">Fontes e configurações</span></button>
       </>}

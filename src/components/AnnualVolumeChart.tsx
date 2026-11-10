@@ -1,3 +1,4 @@
+import { ChartExport } from './ChartExport';
 import { Bar, BarChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { CalendarRange } from "lucide-react";
 import type { AnnualAlarmVolume } from "../types/operadora";
@@ -44,6 +45,7 @@ export function AnnualVolumeChart({ year, years, yearPinned, periodConstrained, 
 
   return (
     <section className="panel annual-panel">
+      <ChartExport title="Volume de alarmes" />
       <div className="panel-heading annual-panel__heading">
         <div className="panel-heading__icon"><CalendarRange size={16} /></div>
         <div className="panel-heading__copy">

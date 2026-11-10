@@ -216,3 +216,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .portal-admin h2 { font-size: 17px; margin: 0 0 8px; }
 .portal-error { margin: 12px 20px; }
 .portal-access [role=alert], .portal-admin [role=alert], .portal-error { color: #9b2525; }
+
+.chart-export { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; margin-bottom: 8px; }
+.chart-export__error { color: #9b2525; font-size: .85rem; }
+.portal-role-select { background: #fff; color: #132c4b; border: 1px solid #cdd9e8; border-radius: 7px; padding: 6px; font: inherit; }

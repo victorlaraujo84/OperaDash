@@ -1,3 +1,4 @@
+import { ChartExport } from './ChartExport';
 import { Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { BarChart3, CheckCircle2, Clock3, Ticket, TrendingUp, Zap } from "lucide-react";
 import type { ItsmOperationalSummary } from "../types/operadora";
@@ -33,6 +34,7 @@ export function ItsmIndicatorsPanel({ summary, hasItsm, categoryLabel, periodLab
 
           <div className="itsm-indicators-grid">
             <section className="panel itsm-volume-panel" aria-labelledby="itsm-volume-title">
+              {summary.monthly.length > 0 && <ChartExport title="Alarmes e tickets abertos" />}
               <div className="panel-heading">
                 <div className="panel-heading__icon"><TrendingUp size={16} /></div>
                 <div className="panel-heading__copy"><h2 id="itsm-volume-title">Alarmes × tickets abertos</h2><p>Volume mensal dos alarmes filtrados e tickets com data de abertura</p></div>
@@ -42,6 +44,7 @@ export function ItsmIndicatorsPanel({ summary, hasItsm, categoryLabel, periodLab
             </section>
 
             <section className="panel oscillation-panel" aria-labelledby="oscillation-title">
+              <ChartExport title="Alarmes de oscilação" />
               <div className="panel-heading"><div className="panel-heading__icon"><Zap size={16} /></div><div className="panel-heading__copy"><h2 id="oscillation-title">Alarmes de oscilação</h2><p>Contagens cumulativas por duração do alarme</p></div></div>
               <div className="oscillation-total"><strong>{formatNumber(summary.oscillationUnder40)}</strong><span>abaixo de 40 min</span></div>
               <div className="oscillation-list">
@@ -53,6 +56,7 @@ export function ItsmIndicatorsPanel({ summary, hasItsm, categoryLabel, periodLab
             </section>
 
             <section className="panel itsm-reasons-panel" aria-labelledby="itsm-reasons-title">
+              {summary.reasonBreakdown.length > 0 && <ChartExport title="Classificação dos tickets" />}
               <div className="panel-heading"><div className="panel-heading__icon"><BarChart3 size={16} /></div><div className="panel-heading__copy"><h2 id="itsm-reasons-title">Classificação dos tickets</h2><p>Distribuição por motivo ou tipo informado no Jira</p></div></div>
               {summary.reasonBreakdown.length ? <div className="itsm-reasons-content">
                 <div className="itsm-reasons-chart"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={summary.reasonBreakdown} dataKey="tickets" nameKey="reason" cx="50%" cy="50%" innerRadius="56%" outerRadius="82%" paddingAngle={2} stroke="#ffffff" strokeWidth={2}>{summary.reasonBreakdown.map((entry, index) => <Cell key={`${entry.reason}-${index}`} fill={reasonColors[index % reasonColors.length]} />)}</Pie><Tooltip formatter={(value, _name, item) => [`${formatNumber(Number(value))} tickets · ${Number(item.payload.sharePercent).toFixed(1)}%`, item.payload.reason]} contentStyle={{ background: "#ffffff", border: "1px solid rgba(18, 53, 91, 0.18)", borderRadius: 10, color: "#18324b", fontSize: 10 }} /></PieChart></ResponsiveContainer></div>
@@ -63,12 +67,14 @@ export function ItsmIndicatorsPanel({ summary, hasItsm, categoryLabel, periodLab
           </div>
 
           <section className="panel oscillation-offenders-panel" aria-labelledby="oscillation-offenders-title">
+            {summary.oscillationOffenders.length > 0 && <ChartExport title="Ofensores de oscilação" />}
             <div className="panel-heading"><div className="panel-heading__icon"><BarChart3 size={16} /></div><div className="panel-heading__copy"><h2 id="oscillation-offenders-title">Ofensores de oscilação</h2><p>Ativos que concentram mais ocorrências e minutos abaixo de 40 min</p></div><span className="panel-tag">TOP {summary.oscillationOffenders.length}</span></div>
             {summary.oscillationOffenders.length ? <div className="oscillation-offenders-table"><div className="oscillation-offenders-table__head"><span>Ativo · operadora · localidade</span><span>Ocorrências</span><span>Minutos</span><span>Participação</span></div>{summary.oscillationOffenders.map((offender) => <div className="oscillation-offender-row" key={`${offender.name}\u0000${offender.operator}\u0000${offender.locality}`}><div className="oscillation-offender-row__identity"><strong title={offender.name}>{offender.name}</strong><small>{offender.operator} · {offender.locality}</small></div><strong>{formatNumber(offender.alarms)}</strong><span>{formatMinutes(offender.totalMinutes, true)}<small>{formatMinutes(offender.averageMinutes, true)} / ocorrência</small></span><div className="oscillation-offender-row__share"><div className="oscillation-offender-row__bar"><i style={{ width: `${Math.min(100, Math.max(2, offender.sharePercent))}%` }} /></div><strong>{offender.sharePercent.toFixed(1)}%</strong></div></div>)}</div> : <div className="chart-empty"><span className="empty-mark">—</span><p>Nenhum ofensor de oscilação no recorte atual.</p></div>}
             <div className="panel-footnote">Ordenação prioriza quantidade de oscilações; os minutos e a participação mostram onde concentrar investigação. O tempo médio por ocorrência ajuda a separar repetição curta de impacto acumulado.</div>
           </section>
 
           <section className="panel itsm-resolution-panel" aria-label="Volume de tickets resolvidos por mês">
+            {summary.monthly.length > 0 && <ChartExport title="Tickets resolvidos por mês" />}
             <div className="panel-heading"><div className="panel-heading__icon"><CheckCircle2 size={16} /></div><div className="panel-heading__copy"><h2>Tickets resolvidos</h2><p>Distribuição mensal conforme a data Resolvido da planilha ITSM</p></div></div>
             <div className="itsm-resolution-strip">{summary.monthly.length ? summary.monthly.map((month) => <div className="itsm-resolution-month" key={month.key}><span>{month.label}</span><strong>{formatNumber(month.ticketsResolved)}</strong><small>resolvidos</small></div>) : <p className="chart-empty">Sem datas de resolução no recorte.</p>}</div>
           </section>

@@ -1,3 +1,4 @@
+import { ChartExport } from './ChartExport';
 import { Clock3 } from "lucide-react";
 import type { DaypartActuationRow } from "../types/operadora";
 import { formatNumber, formatPercent } from "../lib/analytics";
@@ -14,6 +15,7 @@ export function DaypartActuation({ rows, unclassified, previousRows = [], compar
   const previousByKey = new Map(previousRows.map((row) => [row.key, row]));
   return (
     <section className="panel daypart-panel">
+      <ChartExport title="Atuação por período do dia" />
       <div className="panel-heading">
         <div className="panel-heading__icon"><Clock3 size={16} /></div>
         <div className="panel-heading__copy">

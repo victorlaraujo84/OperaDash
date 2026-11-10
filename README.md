@@ -115,7 +115,7 @@ pnpm build
 
 ## Acesso ao portal e Docker
 
-O portal usa conta e senha próprias. O servidor autoriza cada leitura ou alteração de arquivo pelo cliente associado. O administrador cadastra clientes, cria contas, redefine senhas e desativa acessos. Cada usuário de consulta vê somente o próprio cliente e troca a senha inicial no primeiro acesso.
+O portal usa conta e senha próprias. O servidor autoriza cada leitura ou alteração pelo cliente associado. O **Administrador geral** gerencia clientes, contas e fontes. Em **Administração → Contas de clientes**, atribua **Gestor do cliente** a quem publica, remapeia ou remove fontes da própria organização, ou **Consulta** a quem visualiza os dados. Alterar o nível encerra as sessões da conta. As contas já cadastradas conservam o nível de consulta.
 
 1. Crie um arquivo `.env` local junto ao `docker-compose.yml`. O usuário inicial padrão é `admlocal`. Defina `OPERADASH_ADMIN_PASSWORD` com uma senha forte de 12 a 128 caracteres. A senha inicial só é usada quando o banco ainda não tem um administrador.
 2. Em um teste na própria máquina, defina `OPERADASH_ALLOW_HTTP=1`. A porta padrão é 8080 e o Compose publica em 127.0.0.1. Para produção, mantenha `OPERADASH_ALLOW_HTTP=0`, defina `OPERADASH_TRUST_PROXY=1` e publique o portal por HTTPS no proxy reverso. Restrinja o acesso direto à porta interna e configure o proxy para sobrescrever `X-Real-IP` com o endereço real do visitante. No Nginx, use `proxy_set_header X-Real-IP $remote_addr;` e `client_max_body_size 64m;`. A API usa esse endereço para limitar tentativas de login por visitante.
@@ -124,6 +124,18 @@ O portal usa conta e senha próprias. O servidor autoriza cada leitura ou altera
 5. Preserve o volume `operadash-data`, que contém contas e planilhas. Depois de iniciar e conferir a conta, remova a senha de configuração do `.env` e recrie o contêiner com `docker compose up -d`, mantendo o volume.
 
 A análise das planilhas continua no navegador depois que o servidor autoriza o download. Use o build da extensão para o fluxo local com IndexedDB.
+
+Os botões **PNG** salvam o painel do gráfico com os valores e filtros exibidos. A exportação está disponível nos níveis de acesso que podem consultar o painel.
+
+### Publicação com HTTPS
+
+Quando houver um servidor e um domínio, aponte o DNS do domínio para o servidor e disponibilize as portas 80 e 443. Configure `OPERADASH_DOMAIN` no `.env` com o nome do domínio. Use o mesmo nome de projeto do Compose da instalação existente para reutilizar o volume de dados. Por exemplo, para o projeto `operadash`:
+
+```sh
+docker compose -p operadash -f docker-compose.yml -f docker-compose.https.yml up --build -d
+```
+
+O Caddy emite e renova o certificado e redireciona HTTP para HTTPS. O Compose com HTTPS publica as portas do Caddy e mantém a API na rede interna. Preserve o volume `operadash-data` ao atualizar e inclua-o no backup da instalação. Consulte a [documentação de HTTPS automático do Caddy](https://caddyserver.com/docs/automatic-https).
 
 ## Extensão Chrome
 

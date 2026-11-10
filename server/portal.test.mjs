@@ -32,8 +32,17 @@ try {
   assert.equal((await send('clients/' + b.id + '/files/alarms', 'GET', undefined, reader)).status, 403);
   assert.equal((await send(path, 'DELETE', undefined, reader)).status, 403);
   assert.equal((await send('admin/users', 'GET', undefined, reader)).status, 403);
-  assert.equal((await send('admin/users/' + user.id, 'PATCH', { active: false }, admin)).status, 204);
+  assert.equal((await send('admin/users/' + user.id, 'PATCH', { role: 'manager' }, admin)).status, 204);
   assert.equal((await send(path, 'GET', undefined, reader)).status, 401);
+  const promoted = await send('login', 'POST', { login: 'leitor', password: 'Senha-definitiva-123' });
+  const manager = cookie(promoted);
+  assert.equal((await promoted.json()).role, 'manager');
+  assert.equal((await send('clients/' + b.id + '/files/alarms', 'DELETE', undefined, manager)).status, 403);
+  assert.equal((await send('admin/users', 'GET', undefined, manager)).status, 403);
+  assert.equal((await send(path, 'DELETE', undefined, manager)).status, 204);
+  assert.equal((await send(path, 'GET', undefined, manager)).status, 404);
+  assert.equal((await send('admin/users/' + user.id, 'PATCH', { active: false }, admin)).status, 204);
+  assert.equal((await send(path, 'GET', undefined, manager)).status, 401);
 } finally {
   app.close();
 }

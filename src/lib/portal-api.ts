@@ -3,13 +3,13 @@ import type { ImportDocumentKey, StoredImportDocument } from './import-storage';
 export interface PortalUser {
   id: number;
   login: string;
-  role: 'admin' | 'reader';
+  role: 'admin' | 'manager' | 'reader';
   clientId: number | null;
   mustChange: boolean;
 }
 
 export interface PortalClient { id: number; name: string }
-export interface PortalAccount { id: number; login: string; clientId: number; active: number; mustChange: number }
+export interface PortalAccount { id: number; login: string; clientId: number; active: number; mustChange: number; role: 'manager' | 'reader' }
 
 export class PortalError extends Error {
   constructor(public status: number, message: string) { super(message); }

@@ -189,7 +189,7 @@ function exportCsv(rows: AlarmRecord[], category: AlarmCategory) {
   URL.revokeObjectURL(url);
 }
 
-export default function App({ documents = localDocuments, readOnly = false }: { documents?: typeof localDocuments; readOnly?: boolean }) {
+export default function App({ documents = localDocuments, readOnly = false, canUseAi = true }: { documents?: typeof localDocuments; readOnly?: boolean; canUseAi?: boolean }) {
   const { loadImportedDocument, removeImportedDocument, saveImportedDocument } = documents;
   const [page, setPage] = useState<SolorPage>('overview');
   const [filtersExpanded, setFiltersExpanded] = useState(true);
@@ -236,7 +236,7 @@ export default function App({ documents = localDocuments, readOnly = false }: { 
   const extensionEnvironment = typeof chrome !== "undefined" && Boolean(chrome.runtime?.id && chrome.permissions?.request);
 
   const navigate = (next: SolorPage) => {
-    if (readOnly && (next === 'sources' || next === 'ai')) return;
+    if ((readOnly && next === 'sources') || (!canUseAi && next === 'ai')) return;
     setPage(next);
     setSidebarOpen(next === 'sources');
     if (next === 'links' || next === 'devices') {
@@ -739,7 +739,7 @@ export default function App({ documents = localDocuments, readOnly = false }: { 
   );
 
   return (
-    <SolorShell page={page} onNavigate={navigate} logo={companyLogo} logoScale={logoScale} readOnly={readOnly} shared={documents !== localDocuments}>
+    <SolorShell page={page} onNavigate={navigate} logo={companyLogo} logoScale={logoScale} readOnly={readOnly} canUseAi={canUseAi} shared={documents !== localDocuments}>
     <div className={`app-shell solor-page solor-page--${page}`}>
       <header className="topbar">
         <a className="brand" href="./index.html" aria-label="Painel NOC Operadoras">
@@ -792,9 +792,9 @@ export default function App({ documents = localDocuments, readOnly = false }: { 
                 onLocalityColumnChange={(columnIndex) => { if (inventoryFile && inventoryData) void processInventoryFile(inventoryFile, inventoryData.sheetName, inventoryData.hostColumnIndex ?? undefined, inventoryData.categoryColumnIndex, columnIndex, inventoryData.operatorColumnIndex); }}
               />
               {inventoryData ? <DetectedColumnsPanel title="Colunas do inventário" fileName={inventoryData.fileName} sheetName={inventoryData.sheetName} totalRows={inventoryData.totalRows} columns={inventoryDetectedColumns} /> : null}
-              <CompanyLogoSettings logo={companyLogo} onChange={setCompanyLogo} scale={logoScale} onScaleChange={setLogoScale} />
+              {canUseAi && <CompanyLogoSettings logo={companyLogo} onChange={setCompanyLogo} scale={logoScale} onScaleChange={setLogoScale} />}
               <SourceTemplates />
-              <JiraSettings value={jiraBaseUrl} onChange={setJiraBaseUrl} />
+              {canUseAi && <JiraSettings value={jiraBaseUrl} onChange={setJiraBaseUrl} />}
               <DataQualityPanel filteredCount={filtered.length} durationIncluded={mttr.included} availabilityStatus={availability.status} availabilityExcluded={availability.excludedRecords} unmatchedAssets={availability.unmatchedAssets.length} inventoryLoaded={Boolean(inventoryData)} mtfbGroups={mtfbSummary.groupsWithBase} mtfbIntervals={mtfbSummary.intervals} />
             </aside>
           ) : null}

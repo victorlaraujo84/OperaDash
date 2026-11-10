@@ -1,3 +1,4 @@
+import { ChartExport } from './ChartExport';
 import { ArrowUpRight, ChevronDown } from 'lucide-react';
 import type { ReactNode } from 'react';
 import type { RankedEntity } from '../types/operadora';
@@ -19,7 +20,7 @@ export function RankChart({ title, description, rows, metric, icon, emptyLabel =
   const previousByName = new Map(comparisonRows.map(row => [row.name, row]));
   const showJira = title.startsWith('Links ofensores') || title.startsWith('Dispositivos ofensores');
   const toneFor = (direction: string) => metricLabel === 'Tickets' ? 'neutral' : direction === 'up' || direction === 'new' ? 'negative' : direction === 'down' ? 'positive' : 'neutral';
-  return <section className="panel rank-panel solor-rank-panel"><div className="panel-heading"><div className="panel-heading__icon">{icon}</div><div className="panel-heading__copy"><h2>{title}</h2><p>{description}</p></div><span className="panel-tag">TOP 5</span></div>
+  return <section className="panel rank-panel solor-rank-panel">{rows.length > 0 && <ChartExport title={title} />}<div className="panel-heading"><div className="panel-heading__icon">{icon}</div><div className="panel-heading__copy"><h2>{title}</h2><p>{description}</p></div><span className="panel-tag">TOP 5</span></div>
     {rows.length ? <ol className="solor-ranking-list">{rows.map((row, index) => {
       const trend = getRelativeTrend(valueOf(row), hasBaseline ? valueOf(previousByName.get(row.name)) : null);
       const jira = showJira ? jiraIssueSearchUrl(row.name, jiraBaseUrl) : null;

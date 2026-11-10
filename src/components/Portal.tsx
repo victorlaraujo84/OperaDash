@@ -5,6 +5,7 @@ import { clientDocuments, portalJson, PortalError, type PortalAccount, type Port
 
 const sessionNotice = 'operadash:session-updated';
 const errorText = (cause: unknown) => cause instanceof Error ? cause.message : 'Não foi possível concluir a operação.';
+const roleNames = { admin: 'Administrador geral', manager: 'Gestor do cliente', reader: 'Consulta' };
 
 function AccessCard({ title, children }: { title: string; children?: ReactNode }) {
   return <main className="portal-access"><section className="portal-access__card panel">
@@ -58,7 +59,7 @@ function Administration({ clients, reloadClients }: { clients: PortalClient[]; r
         await portalJson('admin/clients', 'POST', { name: values.get('name') });
         await reloadClients();
       } else if (kind === 'account') {
-        await portalJson('admin/users', 'POST', { login: values.get('login'), password: values.get('password'), clientId: Number(values.get('client')) });
+        await portalJson('admin/users', 'POST', { login: values.get('login'), password: values.get('password'), clientId: Number(values.get('client')), role: values.get('role') });
         await refreshAccounts();
       } else {
         await portalJson('admin/users/' + selected, 'PATCH', { password: values.get('password') });
@@ -82,9 +83,21 @@ function Administration({ clients, reloadClients }: { clients: PortalClient[]; r
     finally { setBusy(false); }
   }
 
+  async function changeRole(account: PortalAccount, role: PortalAccount['role']) {
+    setBusy(true);
+    setError('');
+    setNotice('');
+    try {
+      await portalJson('admin/users/' + account.id, 'PATCH', { role });
+      await refreshAccounts();
+      setNotice('Nível de acesso atualizado. A conta deve entrar novamente.');
+    } catch (cause) { setError(errorText(cause)); }
+    finally { setBusy(false); }
+  }
+
   return <main className="portal-admin">
     <h1>Administração</h1>
-    <p>Cadastre um cliente e vincule suas contas de consulta. Para carregar arquivos, selecione o cliente e abra Fontes e configurações.</p>
+    <p>Cadastre clientes e defina o acesso de cada conta. O gestor pode publicar fontes do próprio cliente. O nível Consulta permite visualizar e exportar gráficos.</p>
     {notice && <p role="status">{notice}</p>}
     {error && <p role="alert">{error}</p>}
     <div className="portal-admin__forms">
@@ -94,8 +107,9 @@ function Administration({ clients, reloadClients }: { clients: PortalClient[]; r
         <button className="button portal-primary" disabled={busy}>Cadastrar cliente</button>
       </form>
       <form className="portal-form panel" onSubmit={event => void submit(event, 'account')}>
-        <h2>Nova conta de consulta</h2>
+        <h2>Nova conta de cliente</h2>
         <label>Cliente<select name="client" required><option value="">Selecione</option>{clients.map(client => <option key={client.id} value={client.id}>{client.name}</option>)}</select></label>
+        <label>Nível de acesso<select name="role"><option value="reader">{roleNames.reader}</option><option value="manager">{roleNames.manager}</option></select></label>
         <label>Usuário<input name="login" required minLength={3} maxLength={128} autoComplete="off" /></label>
         <label>Senha inicial<input name="password" type="password" required minLength={12} maxLength={128} autoComplete="new-password" /></label>
         <button className="button portal-primary" disabled={busy || !clients.length}>Criar conta</button>
@@ -109,8 +123,9 @@ function Administration({ clients, reloadClients }: { clients: PortalClient[]; r
     </div>
     <section className="panel portal-admin__accounts">
       <h2>Contas de clientes</h2>
-      {accounts.length ? <div className="solor-table-scroll"><table className="solor-data-table"><thead><tr><th>Usuário</th><th>Cliente</th><th>Status</th><th>Ação</th></tr></thead>
+      {accounts.length ? <div className="solor-table-scroll"><table className="solor-data-table"><thead><tr><th>Usuário</th><th>Cliente</th><th>Nível de acesso</th><th>Status</th><th>Ação</th></tr></thead>
         <tbody>{accounts.map(account => <tr key={account.id}><td>{account.login}</td><td>{clients.find(client => client.id === account.clientId)?.name}</td>
+          <td><select className="portal-role-select" aria-label={`Nível de acesso de ${account.login}`} value={account.role} disabled={busy} onChange={event => void changeRole(account, event.target.value as PortalAccount['role'])}><option value="reader">{roleNames.reader}</option><option value="manager">{roleNames.manager}</option></select></td>
           <td>{account.active ? account.mustChange ? 'Aguardando troca de senha' : 'Ativa' : 'Desativada'}</td>
           <td><button className="button button--quiet" disabled={busy} onClick={() => void toggle(account)}>{account.active ? 'Desativar' : 'Reativar'}</button></td></tr>)}</tbody>
       </table></div> : <p>Nenhuma conta cadastrada.</p>}
@@ -130,7 +145,7 @@ function Workspace({ user, logout, password }: { user: PortalUser; logout: () =>
   useEffect(() => { void reloadClients().catch(cause => setError(errorText(cause))); }, []);
   return <>
     <header className="portal-toolbar">
-      <span><strong>{user.login}</strong> · {admin ? 'Administrador' : clients.find(client => client.id === clientId)?.name ?? 'Cliente'}</span>
+      <span><strong>{user.login}</strong> · {roleNames[user.role]}{!admin && ` · ${clients.find(client => client.id === clientId)?.name ?? 'Cliente'}`}</span>
       {admin && <>
         <label>Cliente ativo <select value={selection} onChange={event => { setSelection(event.target.value); setAdminPanel(false); }}>
           <option value="">Selecione um cliente</option>
@@ -143,7 +158,7 @@ function Workspace({ user, logout, password }: { user: PortalUser; logout: () =>
     </header>
     {error && <p role="alert" className="portal-error">{error}</p>}
     {admin && (adminPanel || !storage) ? <Administration clients={clients} reloadClients={reloadClients} />
-      : storage && <App key={clientId} documents={storage} readOnly={!admin} />}
+      : storage && <App key={clientId} documents={storage} readOnly={user.role === 'reader'} canUseAi={admin} />}
   </>;
 }
 

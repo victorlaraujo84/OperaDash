@@ -104,6 +104,17 @@ export function createPortal({ database, webRoot, secure = true, trustProxy = fa
   `);
   const query = (sql, ...params) => db.prepare(sql).get(...params);
   const write = (sql, ...params) => db.prepare(sql).run(...params);
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    if (!db.prepare('PRAGMA table_info(users)').all().some(column => column.name === 'manage_sources')) {
+      db.exec('ALTER TABLE users ADD COLUMN manage_sources INTEGER NOT NULL DEFAULT 0 CHECK (manage_sources IN (0, 1))');
+    }
+    db.exec('COMMIT');
+  } catch (error) {
+    db.exec('ROLLBACK');
+    db.close();
+    throw error;
+  }
   if (!query("SELECT id FROM users WHERE role = 'admin'")) {
     const login = normalizeLogin(adminLogin);
     if (!validLogin(login) || !validPassword(adminPassword)) {
@@ -115,7 +126,7 @@ export function createPortal({ database, webRoot, secure = true, trustProxy = fa
     write("UPDATE users SET must_change = 0 WHERE role = 'admin'");
   }
   const dummy = passwordHash(randomBytes(24).toString('hex'));
-  const identity = user => ({ id: user.id, login: user.login, role: user.role, clientId: user.client_id, mustChange: Boolean(user.must_change) });
+  const identity = user => ({ id: user.id, login: user.login, role: user.role === 'reader' && user.manage_sources ? 'manager' : user.role, clientId: user.client_id, mustChange: Boolean(user.must_change) });
   const getUser = id => query('SELECT * FROM users WHERE id = ?', id);
   const revoke = id => write('DELETE FROM sessions WHERE user_id = ?', id);
   const setCookie = (res, token, age) => res.setHeader('Set-Cookie', cookieName + '=' + token + '; Path=/; HttpOnly; SameSite=Strict; Max-Age=' + age + (secure ? '; Secure' : ''));
@@ -214,26 +225,33 @@ export function createPortal({ database, webRoot, secure = true, trustProxy = fa
           return json(res, 201, { id: Number(result.lastInsertRowid), name: clean });
         }
         if (pathname === '/api/admin/users' && method === 'GET') {
-          return json(res, 200, db.prepare("SELECT id, login, client_id AS clientId, active, must_change AS mustChange FROM users WHERE role = 'reader' ORDER BY login").all());
+          return json(res, 200, db.prepare(`
+            SELECT id, login, client_id AS clientId, active, must_change AS mustChange,
+              CASE manage_sources WHEN 1 THEN 'manager' ELSE 'reader' END AS role
+            FROM users WHERE role = 'reader' ORDER BY login
+          `).all());
         }
         if (pathname === '/api/admin/users' && method === 'POST') {
-          const { login, password, clientId } = await authenticatedJson();
+          const { login, password, clientId, role = 'reader' } = await authenticatedJson();
           const name = normalizeLogin(login);
           if (!validLogin(name) || !validPassword(password)) fail(400, 'Informe um usuário válido e uma senha de 12 a 128 caracteres.');
           if (!Number.isSafeInteger(clientId) || !query('SELECT id FROM clients WHERE id = ?', clientId)) fail(400, 'Selecione um cliente cadastrado.');
           if (query('SELECT id FROM users WHERE login = ?', name)) fail(409, 'Este usuário já existe.');
-          const result = write("INSERT INTO users(login, hash, role, client_id) VALUES (?, ?, 'reader', ?)", name, passwordHash(password), clientId);
+          if (role !== 'reader' && role !== 'manager') fail(400, 'Selecione um nível de acesso válido.');
+          const result = write("INSERT INTO users(login, hash, role, client_id, manage_sources) VALUES (?, ?, 'reader', ?, ?)", name, passwordHash(password), clientId, Number(role === 'manager'));
           return json(res, 201, { id: Number(result.lastInsertRowid) });
         }
         const userId = /^\/api\/admin\/users\/(\d+)$/.exec(pathname)?.[1];
         if (userId && method === 'PATCH') {
           const id = Number(userId);
           if (getUser(id)?.role !== 'reader') fail(404, 'Conta de cliente não encontrada.');
-          const { active, password } = await authenticatedJson();
-          if (typeof active !== 'boolean' && password === undefined) fail(400, 'Informe uma alteração.');
+          const { active, password, role } = await authenticatedJson();
+          if (typeof active !== 'boolean' && password === undefined && role === undefined) fail(400, 'Informe uma alteração.');
           if (password !== undefined && !validPassword(password)) fail(400, 'Use uma senha de 12 a 128 caracteres.');
+          if (role !== undefined && role !== 'reader' && role !== 'manager') fail(400, 'Selecione um nível de acesso válido.');
           if (password !== undefined) write('UPDATE users SET hash = ?, must_change = 1 WHERE id = ?', passwordHash(password), id);
           if (typeof active === 'boolean') write('UPDATE users SET active = ? WHERE id = ?', Number(active), id);
+          if (role !== undefined) write('UPDATE users SET manage_sources = ? WHERE id = ?', Number(role === 'manager'), id);
           revoke(id);
           res.writeHead(204).end();
           return;
@@ -243,7 +261,7 @@ export function createPortal({ database, webRoot, secure = true, trustProxy = fa
       const file = /^\/api\/clients\/(\d+)\/files\/(alarms|itsm|inventory|subtasks)$/.exec(pathname);
       if (file) {
         const clientId = Number(file[1]), key = file[2];
-        if (!admin && (user.client_id !== clientId || method !== 'GET')) fail(403, 'Acesso ao arquivo não autorizado.');
+        if (!admin && (user.client_id !== clientId || (method !== 'GET' && !user.manage_sources))) fail(403, 'Acesso ao arquivo não autorizado.');
         if (!query('SELECT id FROM clients WHERE id = ?', clientId)) fail(404, 'Cliente não encontrado.');
         if (method === 'GET') {
           const stored = query('SELECT metadata, content FROM files WHERE client_id = ? AND key = ?', clientId, key);

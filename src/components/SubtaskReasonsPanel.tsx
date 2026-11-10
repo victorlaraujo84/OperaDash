@@ -1,3 +1,4 @@
+import { ChartExport } from './ChartExport';
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { formatNumber, monthKey } from '../lib/analytics';
 import type { getSubtaskReasons } from '../lib/subtask-reasons';
@@ -19,6 +20,7 @@ export function SubtaskReasonsPanel({ analysis }: { analysis: ReturnType<typeof 
   }
   const coverage = analysis.rows.length ? new Intl.NumberFormat('pt-BR', { style: 'percent', maximumFractionDigits: 1 }).format(analysis.classified / analysis.rows.length) : '—';
   return <section className="panel solor-chart subtask-reasons">
+    {analysis.classified > 0 && <ChartExport title="Motivos de alarme nas subtarefas" />}
     <div className="solor-section-heading"><div>
       <h3>Motivos de alarme nas subtarefas</h3>
       <p>Contagem por chave e data de criação da subtarefa. Inclui registros sem incidente vinculado.</p>
